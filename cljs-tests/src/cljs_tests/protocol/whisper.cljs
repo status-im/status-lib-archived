@@ -11,6 +11,9 @@
 (defn from-ascii [s]
   (.fromAscii js/Web3.prototype s))
 
+(defn to-ascii [s]
+  (.toAscii js/Web3.prototype s))
+
 (defn whisper [web3]
   (.-shh web3))
 
@@ -28,10 +31,10 @@
 (defn invoke-handler [event-type params]
   ((state/handler) (assoc params :event-type event-type)))
 
-(defn handle-ack [msg-id]
-  (log/info "Got ack for message:" msg-id)
-  (state/remove-pending-message msg-id)
-  (invoke-handler :msg-acked {:msg-id msg-id}))
+(defn handle-ack [{:keys [ack-msg-id]}]
+  (log/info "Got ack for message:" ack-msg-id)
+  (state/remove-pending-message ack-msg-id)
+  (invoke-handler :msg-acked {:msg-id ack-msg-id}))
 
 (defn post-msg [web3 msg]
   (let [js-msg (clj->js msg)]
@@ -56,11 +59,11 @@
 
 (defn send-ack [web3 to msg-id]
   (log/info "Acking message:" msg-id "To:" to)
-  (->> (make-msg {:from    (state/my-identity)
-                  :to      to
-                  :payload {:type   :ack
-                            :msg-id msg-id}})
-       (post-msg web3)))
+  (let [[_ msg] (make-msg {:from    (state/my-identity)
+                           :to      to
+                           :payload {:type       :ack
+                                     :ack-msg-id msg-id}})]
+    (post-msg web3 msg)))
 
 (defn handle-user-msg [web3 from {:keys [msg-id] :as payload}]
   (send-ack web3 from msg-id)
@@ -77,10 +80,10 @@
     (if (= to (state/my-identity))
       (let [{msg-type :type
              msg-id   :msg-id
-             :as      payload} (->> (from-ascii payload)
+             :as      payload} (->> (to-ascii payload)
                                     (read-string))]
         (case msg-type
-          :ack (handle-ack msg-id)
+          :ack (handle-ack payload)
           :user-msg (handle-user-msg web3 from payload)))
       (log/warn "My identity:" (state/my-identity) "Message To:" to "Message is encrypted for someone else, ignoring"))))
 

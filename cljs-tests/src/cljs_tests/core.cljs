@@ -1,6 +1,15 @@
 (ns cljs-tests.core
   (:require [cljs-tests.protocol.api :as p]
-            [cljs-tests.utils.logging :as log]))
+            [cljs-tests.utils.logging :as log]
+            [goog.dom :as g]
+            [goog.dom.forms :as f]
+            [goog.events :as e]
+            [goog.events.EventType]
+            [goog.events.KeyCodes]
+            [goog.events.KeyHandler]
+            [goog.events.KeyHandler.EventType :as key-handler-events])
+  (:import [goog.events EventType]
+           [goog.events KeyCodes]))
 
 (enable-console-print!)
 
@@ -9,6 +18,41 @@
   ;; your application
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
   )
+
+(defn start []
+  (let [rpc-url (-> (g/getElement "rpc-url")
+                    (f/getValue))
+        {identity :identity}
+        (p/init-protocol
+          {:ethereum-rpc-url rpc-url
+           :handler          (fn [{:keys [from payload event-type] :as event}]
+                               (log/info "Event:" (clj->js event))
+                               (case event-type
+                                 :new-msg (let [{content :content} payload
+                                                chat-area (g/getElement "chat")
+                                                chat      (f/getValue chat-area)
+                                                chat      (str chat (subs from 0 5) ": " content "\n")]
+                                            (f/setValue chat-area chat))
+                                 (log/info "Don't know how to handle" (clj->js event-type))))})]
+    (-> (g/getElement "my-identity")
+        (f/setValue identity))
+    (e/listen (-> (g/getElement "msg")
+                  (goog.events.KeyHandler.))
+      key-handler-events/KEY
+      (fn [e]
+        (when (= (.-keyCode e) KeyCodes/ENTER)
+          (let [msg         (-> (g/getElement "msg")
+                                (f/getValue))
+                to-identity (-> (g/getElement "to-identity")
+                                (f/getValue))]
+            (p/send-user-msg {:to      to-identity
+                              :content msg})))))))
+
+(let [button (g/getElement "connect-button")]
+  (e/listen button EventType/CLICK
+    (fn [e]
+      (g/setProperties button #js {:disabled "disabled"})
+      (start))))
 
 
 (comment

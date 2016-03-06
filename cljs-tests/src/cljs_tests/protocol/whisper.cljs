@@ -1,11 +1,13 @@
 (ns cljs-tests.protocol.whisper
-  (:require [cljsjs.web3]
+  (:require [cljs.core.async :refer [chan put! close! <!]]
+            [cljsjs.web3]
             [cljsjs.chance]
             [cljs-tests.utils.logging :as log]
             [cljs-tests.protocol.state.state :as state]
             [cljs-tests.protocol.state.delivery :as delivery]
             [cljs-tests.protocol.handler :as handler]
-            [cljs.reader :refer [read-string]]))
+            [cljs.reader :refer [read-string]])
+  (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (def syng-app-topic "SYNG-APP-CHAT-TOPIC")
 (def syng-msg-ttl 100)
@@ -27,8 +29,22 @@
   (->> (js/Web3.providers.HttpProvider. rpc-url)
        (js/Web3.)))
 
+(defn make-callback [{:keys [error-msg result-channel]}]
+  (fn [error result]
+    (if error
+      (do
+        (log/error (str error-msg ":") error)
+        (handler/invoke-handler :error {:error-msg error-msg
+                                        :details   error}))
+      (put! result-channel result))
+    (close! result-channel)))
+
 (defn new-identity [web3]
-  (.newIdentity (.-shh web3)))
+  (let [result-channel (chan)
+        callback       (make-callback {:error-msg      "Call to newIdentity failed"
+                                       :result-channel result-channel})]
+    (.newIdentity (.-shh web3) callback)
+    result-channel))
 
 (defn handle-ack [{:keys [ack-msg-id]}]
   (log/info "Got ack for message:" ack-msg-id)
@@ -39,7 +55,12 @@
   (let [js-msg (clj->js msg)]
     (log/info "Sending whisper message:" js-msg)
     (-> (whisper web3)
-        (.post js-msg))))
+        (.post js-msg (fn [error result]
+                        (when error
+                          (let [error-msg "Call to shh.post() failed"]
+                            (log/error (str error-msg ":") error)
+                            (handler/invoke-handler :error {:error-msg error-msg
+                                                            :details   error}))))))))
 
 (defn make-msg
   "Returns [msg-id msg], `msg` is formed for Web3.shh.post()"
@@ -92,11 +113,10 @@
   [web3]
   (let [topics [syng-app-topic]
         shh    (whisper web3)
-        filter (.filter shh (make-topics topics))
-        watch  (.watch filter (fn [error msg]
-                                (if error
-                                  (handler/invoke-handler :error {:error-msg error})
-                                  (handle-arriving-whisper-msg web3 msg))))]
+        filter (.filter shh (make-topics topics) (fn [error msg]
+                                                   (if error
+                                                     (handler/invoke-handler :error {:error-msg error})
+                                                     (handle-arriving-whisper-msg web3 msg))))]
     (state/add-filter topics filter)))
 
 (defn stop-listener [filter]

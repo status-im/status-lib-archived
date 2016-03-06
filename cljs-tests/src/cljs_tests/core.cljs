@@ -27,21 +27,24 @@
 
 (defn start []
   (let [rpc-url (-> (g/getElement "rpc-url")
-                    (f/getValue))
-        {identity :identity}
-        (p/init-protocol
-          {:ethereum-rpc-url rpc-url
-           :handler          (fn [{:keys [event-type] :as event}]
-                               (log/info "Event:" (clj->js event))
-                               (case event-type
-                                 :new-msg (let [{:keys [from payload]} event
-                                                {content :content} payload]
-                                            (add-to-chat from content))
-                                 :msg-acked (let [{:keys [msg-id]} event]
-                                              (add-to-chat ":" (str "Message " msg-id " was acked")))
-                                 (add-to-chat ":" (str "Don't know how to handle " event-type))))})]
-    (-> (g/getElement "my-identity")
-        (f/setValue identity))
+                    (f/getValue))]
+    (p/init-protocol
+      {:ethereum-rpc-url rpc-url
+       :handler          (fn [{:keys [event-type] :as event}]
+                           (log/info "Event:" (clj->js event))
+                           (case event-type
+                             :new-msg (let [{:keys [from payload]} event
+                                            {content :content} payload]
+                                        (add-to-chat from content))
+                             :msg-acked (let [{:keys [msg-id]} event]
+                                          (add-to-chat ":" (str "Message " msg-id " was acked")))
+                             :initialized (let [{:keys [identity]} event]
+                                            (add-to-chat ":" (str "Initialized, identity is " identity))
+                                            (-> (g/getElement "my-identity")
+                                                (f/setValue identity)))
+                             :delivery-failed (let [{:keys [msg-id]} event]
+                                                (add-to-chat ":" (str "Delivery of message " msg-id " failed")))
+                             (add-to-chat ":" (str "Don't know how to handle " event-type))))})
     (e/listen (-> (g/getElement "msg")
                   (goog.events.KeyHandler.))
       key-handler-events/KEY
@@ -90,6 +93,12 @@
   ;(def web3-2 (p/make-web3 "http://localhost:4547"))
   ;(def user2-ident (p/new-identity web3-2))
   ;(p/make-whisper-msg web3-2 user2-ident user1-ident "Hello World!")
+
+
+  (require '[cljs-tests.protocol.whisper :as w])
+  (def web3 (w/make-web3 "http://localhost:4546"))
+  (.newIdentity (w/whisper web3) (fn [error result]
+                                   (println error result)))
 
   )
 

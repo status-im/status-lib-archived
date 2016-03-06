@@ -1,8 +1,11 @@
 (ns cljs-tests.protocol.api
-  (:require [cljs-tests.protocol.state.state :as state]
+  (:require [cljs.core.async :refer [<! timeout]]
+            [cljs-tests.protocol.state.state :as state]
             [cljs-tests.protocol.delivery :as delivery]
             [cljs-tests.protocol.state.delivery :as delivery-state]
-            [cljs-tests.protocol.whisper :as whisper]))
+            [cljs-tests.protocol.whisper :as whisper]
+            [cljs-tests.protocol.handler :as h])
+  (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (def default-content-type "text/plain")
 
@@ -21,7 +24,7 @@
    :event-type can be:
 
    :new-msg - [from payload]
-   :error - [error-msg]
+   :error - [error-msg details]
    :msg-acked [msg-id]
    :delivery-failed [msg-id]
 
@@ -29,14 +32,15 @@
    "
   [{:keys [handler ethereum-rpc-url identity]}]
   (state/set-handler handler)
-  (let [connection (create-connection ethereum-rpc-url)
-        identity   (or identity
-                       (create-identity connection))]
-    (state/set-connection connection)
-    (state/set-identity identity)
-    (whisper/listen connection)
-    (delivery/start-delivery-loop)
-    {:identity identity}))
+  (go
+    (let [connection (create-connection ethereum-rpc-url)
+          identity   (or identity
+                         (<! (create-identity connection)))]
+      (state/set-connection connection)
+      (state/set-identity identity)
+      (whisper/listen connection)
+      (delivery/start-delivery-loop)
+      (h/invoke-handler :initialized {:identity identity}))))
 
 (defn send-user-msg [{:keys [to content]}]
   (let [{:keys [msg-id msg] :as new-msg} (whisper/make-msg {:from    (state/my-identity)

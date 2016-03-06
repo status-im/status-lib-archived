@@ -1,6 +1,6 @@
-(ns cljs-tests.core
-  (:require [cljs-tests.protocol.api :as p]
-            [cljs-tests.utils.logging :as log]
+(ns syng-im.core
+  (:require [syng-im.protocol.api :as p]
+            [syng-im.utils.logging :as log]
             [goog.dom :as g]
             [goog.dom.forms :as f]
             [goog.events :as e]
@@ -95,7 +95,7 @@
   ;(p/make-whisper-msg web3-2 user2-ident user1-ident "Hello World!")
 
 
-  (require '[cljs-tests.protocol.whisper :as w])
+  (require '[syng-im.protocol.whisper :as w])
   (def web3 (w/make-web3 "http://localhost:4546"))
   (.newIdentity (w/whisper web3) (fn [error result]
                                    (println error result)))

@@ -13,6 +13,7 @@
                  [com.cemerick/piggieback "0.2.1"]
                  ;; cljs deps
                  [cljsjs/chance "0.7.3-0"]
+                 [com.andrewmcveigh/cljs-time "0.4.0"]
                  ]
 
   :plugins [[lein-figwheel "0.5.0-6"]

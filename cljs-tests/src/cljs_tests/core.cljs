@@ -19,21 +19,27 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
   )
 
+(defn add-to-chat [from content]
+  (let [chat-area (g/getElement "chat")
+        chat      (f/getValue chat-area)
+        chat      (str chat (subs from 0 6) ": " content "\n")]
+    (f/setValue chat-area chat)))
+
 (defn start []
   (let [rpc-url (-> (g/getElement "rpc-url")
                     (f/getValue))
         {identity :identity}
         (p/init-protocol
           {:ethereum-rpc-url rpc-url
-           :handler          (fn [{:keys [from payload event-type] :as event}]
+           :handler          (fn [{:keys [event-type] :as event}]
                                (log/info "Event:" (clj->js event))
                                (case event-type
-                                 :new-msg (let [{content :content} payload
-                                                chat-area (g/getElement "chat")
-                                                chat      (f/getValue chat-area)
-                                                chat      (str chat (subs from 0 5) ": " content "\n")]
-                                            (f/setValue chat-area chat))
-                                 (log/info "Don't know how to handle" (clj->js event-type))))})]
+                                 :new-msg (let [{:keys [from payload]} event
+                                                {content :content} payload]
+                                            (add-to-chat from content))
+                                 :msg-acked (let [{:keys [msg-id]} event]
+                                              (add-to-chat ":" (str "Message " msg-id " was acked")))
+                                 (add-to-chat ":" (str "Don't know how to handle " event-type))))})]
     (-> (g/getElement "my-identity")
         (f/setValue identity))
     (e/listen (-> (g/getElement "msg")
@@ -46,7 +52,8 @@
                 to-identity (-> (g/getElement "to-identity")
                                 (f/getValue))]
             (p/send-user-msg {:to      to-identity
-                              :content msg})))))))
+                              :content msg})
+            (add-to-chat (p/my-identity) msg)))))))
 
 (let [button (g/getElement "connect-button")]
   (e/listen button EventType/CLICK

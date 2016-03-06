@@ -1,19 +1,15 @@
-(ns cljs-tests.protocol.state)
+(ns cljs-tests.protocol.state.state
+  (:require [cljs-time.core :as t]))
 
 (def state (atom {:pending-messages {}
                   :filters          {}
+                  :delivery-queue   #queue []
                   :handler          nil
                   :identity         nil
                   :connection       nil}))
 
-(defn add-pending-message [msg-id msg]
-  (swap! state assoc-in [:pending-messages msg-id] msg))
-
 (defn add-filter [topics filter]
   (swap! state assoc-in [:filters topics] filter))
-
-(defn remove-pending-message [msg-id]
-  (swap! state update-in [:pending-messages] dissoc msg-id))
 
 (defn set-handler [handler]
   (swap! state assoc :handler handler))

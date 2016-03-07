@@ -24,10 +24,7 @@
                 :compiler     {:asset-path           "js/compiled/out"
                                :output-to            "resources/public/js/compiled/protocol.js"
                                :output-dir           "resources/public/js/compiled/out"
-                               :source-map-timestamp true
-                               :foreign-libs         [{:file     "resources/public/vendor/js/web3.js"
-                                                       :file-min "resources/public/vendor/js/web3.min.js"
-                                                       :provides ["cljsjs.web3"]}]}}
+                               :source-map-timestamp true}}
                ;; This next build is an compressed minified build for
                ;; production. You can build this with:
                ;; lein cljsbuild once min

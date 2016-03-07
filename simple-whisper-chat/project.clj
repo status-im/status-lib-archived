@@ -13,6 +13,7 @@
                  [com.cemerick/piggieback "0.2.1"]
                  ;; cljs deps
                  [cljsjs/chance "0.7.3-0"]
+                 [cljsjs/web3 "0.15.3-0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
                  [syng-im/protocol "0.1.0"]]
 
@@ -34,16 +35,13 @@
                                :asset-path           "js/compiled/out"
                                :output-to            "resources/public/js/compiled/syng_im.js"
                                :output-dir           "resources/public/js/compiled/out"
-                               :source-map-timestamp true
-                               :foreign-libs         [{:file     "resources/public/vendor/js/web3.js"
-                                                       :file-min "resources/public/vendor/js/web3.min.js"
-                                                       :provides ["cljsjs.web3"]}]}}
+                               :source-map-timestamp true}}
                ;; This next build is an compressed minified build for
                ;; production. You can build this with:
                ;; lein cljsbuild once min
-               {:id           "min"
+               {:id           "prod"
                 :source-paths ["src/cljs"]
-                :compiler     {:output-to     "resources/public/js/compiled/syng_im.js"
+                :compiler     {:output-to     "resources/public/js/compiled/app.js"
                                :main          syng-im.core
                                :optimizations :advanced
                                :pretty-print  false}}]}

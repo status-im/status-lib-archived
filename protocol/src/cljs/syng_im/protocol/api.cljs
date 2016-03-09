@@ -35,13 +35,15 @@
 
 (defn init-protocol
   "Required [handler ethereum-rpc-url storage]
-   Optional [whisper-identity] - if not passed a new identity is created automatically
+   Optional [whisper-identity - if not passed a new identity is created automatically
+             active-group-ids - list of active group ids]
 
    (fn handler [{:keys [event-type...}])
 
    :event-type can be:
 
    :new-msg - [from payload]
+   :new-group-msg [from payload]
    :error - [error-msg details]
    :msg-acked [msg-id from]
    :delivery-failed [msg-id]
@@ -51,7 +53,7 @@
 
    :new-msg, msg-acked should be handled idempotently (may be called multiple times for the same msg-id)
    "
-  [{:keys [handler ethereum-rpc-url storage identity]}]
+  [{:keys [handler ethereum-rpc-url storage identity active-group-ids]}]
   (set-storage storage)
   (set-handler handler)
   (go
@@ -62,6 +64,8 @@
       (set-identity identity)
       (listen connection handle-incoming-whisper-msg)
       (start-delivery-loop)
+      (doseq [group-id active-group-ids]
+        (listen connection handle-incoming-whisper-msg {:topics [group-id]}))
       (invoke-user-handler :initialized {:identity identity}))))
 
 (defn send-user-msg [{:keys [to content]}]
@@ -79,21 +83,24 @@
         {public-key :public} (get-keypair store group-id)
         {:keys [msg-id msg] :as new-msg} (make-msg {:from       (state/my-identity)
                                                     :topics     [group-id]
-                                                    :encrypt    true
+                                                    :encrypt?   true
                                                     :public-key public-key
                                                     :payload    {:content      content
-                                                                 :content-type default-content-type
-                                                                 :type         :user-msg}})]
+                                                                 :content-type default-content-type}
+                                                    :clear-info {:group-id group-id
+                                                                 :type     :group-user-msg}})]
     (add-pending-message msg-id msg {:identities (get-identities store group-id)})
     (post-msg (connection) msg)
     new-msg))
 
 (defn start-group-chat [identities]
   (let [group-topic (random/id)
-        keypair     (new-keypair)]
-    (let [store (storage)]
-      (save-keypair store group-topic keypair)
-      (save-identities store group-topic identities))
+        keypair     (new-keypair)
+        store       (storage)
+        connection  (connection)]
+    (save-keypair store group-topic keypair)
+    (save-identities store group-topic identities)
+    (listen connection handle-incoming-whisper-msg {:topics [group-topic]})
     (doseq [ident identities]
       (let [{:keys [msg-id msg]} (make-msg {:from    (state/my-identity)
                                             :to      ident
@@ -102,28 +109,8 @@
                                                       :identities  identities
                                                       :keypair     keypair}})]
         (add-pending-message msg-id msg {:internal? true})
-        (post-msg (connection) msg)))
+        (post-msg connection msg)))
     group-topic))
 
 (defn current-connection []
   (connection))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

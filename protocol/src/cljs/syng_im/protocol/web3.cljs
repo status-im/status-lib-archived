@@ -34,7 +34,7 @@
       (do
         (log/error (str error-msg ":") error)
         (invoke-user-handler :error {:error-msg error-msg
-                                             :details   error}))
+                                     :details   error}))
       (put! result-channel result))
     (close! result-channel)))
 
@@ -54,11 +54,16 @@
                           (let [error-msg "Call to shh.post() failed"]
                             (log/error (str error-msg ":") error)
                             (invoke-user-handler :error {:error-msg error-msg
-                                                                 :details   error}))))))))
+                                                         :details   error}))))))))
+
+(defn encrypt-payload [public-key clear-info payload-str]
+  (->> (merge {:enc-payload (encrypt public-key payload-str)}
+              clear-info)
+       (str)))
 
 (defn make-msg
   "Returns [msg-id msg], `msg` is formed for Web3.shh.post()"
-  [{:keys [from to ttl topics payload encrypt? public-key]
+  [{:keys [from to ttl topics payload encrypt? public-key clear-info]
     :or   {ttl    syng-msg-ttl
            topics []}}]
   (let [msg-id (random/id)]
@@ -68,7 +73,7 @@
                                     (mapv from-ascii))
                       :payload (cond->> (merge payload {:msg-id msg-id})
                                         true (str)
-                                        encrypt? (encrypt public-key)
+                                        encrypt? (encrypt-payload public-key clear-info)
                                         true (from-ascii))}
                      from (assoc :from from)
                      to (assoc :to to))}))
@@ -77,14 +82,16 @@
 
 (defn listen
   "Returns a filter which can be stopped with (stop-whisper-listener)"
-  [web3 msg-handler]
-  (let [topics [syng-app-topic]
-        shh    (whisper web3)
-        filter (.filter shh (make-topics topics) (fn [error msg]
-                                                   (if error
-                                                     (invoke-user-handler :error {:error-msg error})
-                                                     (msg-handler web3 msg))))]
-    (state/add-filter topics filter)))
+  ([web3 msg-handler]
+    (listen web3 msg-handler {}))
+  ([web3 msg-handler {:keys [topics] :as opts :or {topics []}}]
+   (let [topics (conj topics syng-app-topic)
+         shh    (whisper web3)
+         filter (.filter shh (make-topics topics) (fn [error msg]
+                                                    (if error
+                                                      (invoke-user-handler :error {:error-msg error})
+                                                      (msg-handler web3 msg))))]
+     (state/add-filter topics filter))))
 
 (defn stop-listener [filter]
   (.stopWatching filter))

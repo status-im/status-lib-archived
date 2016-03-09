@@ -4,8 +4,8 @@
             [syng-im.utils.logging :as log]
             [syng-im.protocol.state.delivery :as state]
             [syng-im.protocol.state.state :as s]
-            [syng-im.protocol.whisper :as whisper]
-            [syng-im.protocol.handler :as handler])
+            [syng-im.protocol.web3 :as whisper]
+            [syng-im.protocol.user-handler :refer [invoke-user-handler]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (def max-retry-send-count 5)
@@ -39,8 +39,10 @@
                 (state/inc-retry-count msg-id))
               (do
                 (log/info "Delivery-loop: Retry-count for message" msg-id "reached maximum")
-                (state/remove-pending-message msg-id)
-                (handler/invoke-handler :delivery-failed {:msg-id msg-id})))))
+                (let [internal? (state/internal? msg-id)]
+                  (state/remove-pending-message msg-id)
+                  (when-not internal?
+                    (invoke-user-handler :delivery-failed {:msg-id msg-id})))))))
         (recur (<! (timeout check-delivery-interval-msg))))))
 
 

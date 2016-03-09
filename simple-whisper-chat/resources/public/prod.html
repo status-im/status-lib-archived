@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">    
+    <link href="css/style.css" rel="stylesheet" type="text/css">
+    <style type="text/css">
+      input[type=text] {
+        width: 530px;
+        margin-bottom: 5px;
+      }
+      label {
+        width: 80px;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <!--<div id="app">-->
+      <!--<h2>Figwheel template</h2>-->
+      <!--<p>Checkout your developer console.</p>-->
+    <!--</div>-->
+    <div>
+      <label for="rpc-url">RPC URL</label>
+      <input id="rpc-url" type="text" value="http://localhost:4546" />
+      <button id="connect-button">Connect</button>
+    </div>
+    <div>
+      <div>
+        <label for="chat">Chat:</label>
+      </div>
+      <textarea id="chat" rows="20" cols="150"></textarea>
+    </div>
+    <div>
+      <label for="msg">Message:</label>
+      <input id="msg" type="text" />
+    </div>
+    <div>
+      <label for="my-identity">My Identity</label>
+      <input id="my-identity" readonly=readonly type="text" />
+    </div>
+    <div>
+      <label for="to-identity">To Identity</label>
+      <input id="to-identity" type="text" />
+    </div>
+    <!--<script src="js/compiled/syng_im.js" type="text/javascript"></script>-->
+    <script src="js/compiled/app.js" type="text/javascript"></script>
+  </body>
+</html>

@@ -4,15 +4,19 @@
 (def state (atom {:pending-messages {}
                   :filters          {}
                   :delivery-queue   #queue []
-                  :handler          nil
+                  :external-handler nil
                   :identity         nil
-                  :connection       nil}))
+                  :connection       nil
+                  :storage          nil}))
 
 (defn add-filter [topics filter]
   (swap! state assoc-in [:filters topics] filter))
 
+(defn set-storage [storage]
+  (swap! state assoc :storage storage))
+
 (defn set-handler [handler]
-  (swap! state assoc :handler handler))
+  (swap! state assoc :external-handler handler))
 
 (defn set-identity [identity]
   (swap! state assoc :identity identity))
@@ -26,5 +30,8 @@
 (defn my-identity []
   (:identity @state))
 
-(defn handler []
-  (:handler @state))
+(defn external-handler []
+  (:external-handler @state))
+
+(defn storage []
+  (:storage @state))

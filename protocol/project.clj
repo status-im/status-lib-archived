@@ -10,7 +10,8 @@
                  [org.clojure/clojurescript "1.7.170"]
                  [org.clojure/core.async "0.2.374" :exclusions [org.clojure/tools.reader]]
                  [cljsjs/chance "0.7.3-0"]
-                 [com.andrewmcveigh/cljs-time "0.4.0"]]
+                 [com.andrewmcveigh/cljs-time "0.4.0"]
+                 [cljsjs/web3 "0.15.3-0"]]
 
   :plugins [[lein-cljsbuild "1.1.2" :exclusions [[org.clojure/clojure]]]]
 
@@ -20,7 +21,7 @@
 
   :cljsbuild {:builds
               [{:id           "dev"
-                :source-paths ["src"]
+                :source-paths ["src/cljs"]
                 :compiler     {:asset-path           "js/compiled/out"
                                :output-to            "resources/public/js/compiled/protocol.js"
                                :output-dir           "resources/public/js/compiled/out"
@@ -29,7 +30,7 @@
                ;; production. You can build this with:
                ;; lein cljsbuild once min
                {:id           "min"
-                :source-paths ["src"]
+                :source-paths ["src/cljs"]
                 :compiler     {:output-to     "resources/public/js/compiled/protocol.js"
                                :optimizations :advanced
                                :pretty-print  false}}]}

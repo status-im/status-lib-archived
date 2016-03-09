@@ -7,15 +7,15 @@
   :min-lein-version "2.5.3"
 
   :dependencies [[org.clojure/clojure "1.7.0"]
-                 [org.clojure/clojurescript "1.7.170"]
+                 [org.clojure/clojurescript "1.7.228"]
                  [org.clojure/core.async "0.2.374"
                   :exclusions [org.clojure/tools.reader]]
                  [com.cemerick/piggieback "0.2.1"]
-                 ;; cljs deps
                  [cljsjs/chance "0.7.3-0"]
                  [cljsjs/web3 "0.15.3-0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
-                 [syng-im/protocol "0.1.0"]]
+                 ;[syng-im/protocol "0.1.0"]
+                 ]
 
   :plugins [[lein-figwheel "0.5.0-6"]
             [lein-cljsbuild "1.1.2" :exclusions [[org.clojure/clojure]]]]
@@ -26,7 +26,8 @@
 
   :cljsbuild {:builds
               [{:id           "dev"
-                :source-paths ["src/cljs"]
+
+                :source-paths ["src/cljs" "protocol/src/cljs"]
 
                 ;; If no code is to be run, set :figwheel true for continued automagical reloading
                 :figwheel     {:on-jsload "syng-im.core/on-js-reload"}
@@ -40,7 +41,9 @@
                ;; production. You can build this with:
                ;; lein cljsbuild once min
                {:id           "prod"
+
                 :source-paths ["src/cljs"]
+
                 :compiler     {:output-to     "resources/public/js/compiled/app.js"
                                :main          syng-im.core
                                :optimizations :advanced

@@ -7,13 +7,16 @@
                                                      update-pending-message]]
             [syng-im.protocol.state.group-chat :refer [save-keypair
                                                        save-identities
+                                                       get-identities
                                                        chat-exists?
-                                                       get-keypair]]
+                                                       get-keypair
+                                                       add-identity]]
             [syng-im.protocol.web3 :refer [to-ascii
                                            make-msg
                                            post-msg
                                            listen]]
-            [syng-im.protocol.user-handler :refer [invoke-user-handler]]))
+            [syng-im.protocol.user-handler :refer [invoke-user-handler]]
+            [syng-im.protocol.defaults :refer [default-content-type]]))
 
 (defn handle-ack [from {:keys [ack-msg-id] :as payload}]
   (log/info "Got ack for message:" ack-msg-id "from:" from)
@@ -56,15 +59,27 @@
                                             :identities identities
                                             :group-id   group-topic}))))
 
-(defn handle-group-user-msg [web3 from {:keys [enc-payload group-id]}]
+(defn decrypt-group-msg [group-id encrypted-payload]
   (let [store (storage)
-        {private-key :private} (get-keypair store group-id)
-        {:keys [msg-id] :as payload} (-> (decrypt private-key enc-payload)
-                                         (read-string)
-                                         (assoc :group-id group-id))]
+        {private-key :private} (get-keypair store group-id)]
+    (-> (decrypt private-key encrypted-payload)
+        (read-string)
+        (assoc :group-id group-id))))
+
+(defn handle-group-user-msg [web3 from {:keys [enc-payload group-id]}]
+  (let [{:keys [msg-id] :as payload} (decrypt-group-msg group-id enc-payload)]
     (send-ack web3 from msg-id)
     (invoke-user-handler :new-group-msg {:from    from
                                          :payload payload})))
+
+(defn handle-group-new-participant [web3 from {:keys [enc-payload group-id]}]
+  (let [store (storage)
+        {:keys [msg-id identity]} (decrypt-group-msg group-id enc-payload)]
+    (send-ack web3 from msg-id)
+    (add-identity store group-id identity)
+    (invoke-user-handler :group-new-participant {:identity identity
+                                                 :group-id group-id
+                                                 :from     from})))
 
 (defn handle-incoming-whisper-msg [web3 msg]
   (log/info "Got whisper message:" msg)
@@ -81,5 +96,6 @@
           :ack (handle-ack from payload)
           :user-msg (handle-user-msg web3 from payload)
           :init-group-chat (handle-new-group-chat web3 from payload)
-          :group-user-msg (handle-group-user-msg web3 from payload)))
+          :group-user-msg (handle-group-user-msg web3 from payload)
+          :group-new-participant (handle-group-new-participant web3 from payload)))
       (log/warn "My identity:" (state/my-identity) "Message To:" to "Message is encrypted for someone else, ignoring"))))

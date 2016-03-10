@@ -22,8 +22,7 @@
    (swap! state (fn [state]
                   (-> (assoc-in state [:pending-messages msg-id] {:msg         msg
                                                                   :retry-count 0
-                                                                  :identities  (when identities
-                                                                                 (set identities))
+                                                                  :identities  identities
                                                                   :internal?   internal?})
                       (push-msg-to-delivery-queue msg-id)))))
   ([msg-id msg]

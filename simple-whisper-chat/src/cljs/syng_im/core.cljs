@@ -34,19 +34,27 @@
                       :group-identities nil
                       :storage          (map->MapStore {:m (atom {})})}))
 
+(defn shorten [s]
+  (subs s 0 6))
+
 (defn set-group-id! [group-id]
   (swap! state assoc :group-id group-id))
 
 (defn add-to-chat [element-id from content]
   (let [chat-area (g/getElement element-id)
         chat      (f/getValue chat-area)
-        chat      (str chat (subs from 0 6) ": " content "\n")]
+        chat      (str chat (shorten from) ": " content "\n")]
     (f/setValue chat-area chat)))
 
 (defn set-group-identities [identities]
   (let [ids (s/join "\n" identities)]
     (-> (g/getElement "to-identities")
         (f/setValue ids))))
+
+(defn get-group-identities []
+  (-> (g/getElement "to-identities")
+      (f/getValue)
+      (s/split "\n")))
 
 (defn start []
   (let [rpc-url (-> (g/getElement "rpc-url")
@@ -77,6 +85,12 @@
                              :new-group-msg (let [{from               :from
                                                    {content :content} :payload} event]
                                               (add-to-chat "group-chat" from content))
+                             :group-new-participant (let [{:keys [group-id identity from]} event]
+                                                      (add-to-chat "group-chat" ":" (str (shorten from) " added " (shorten identity) " to group chat"))
+                                                      (-> (get-group-identities)
+                                                          (set)
+                                                          (conj identity)
+                                                          (set-group-identities)))
                              (add-to-chat "chat" ":" (str "Don't know how to handle " event-type))))})
     (e/listen (-> (g/getElement "msg")
                   (goog.events.KeyHandler.))
@@ -98,17 +112,22 @@
           (let [msg      (-> (g/getElement "group-msg")
                              (f/getValue))
                 group-id (:group-id @state)]
-            (p/send-group-msg {:group-id group-id
-                               :content  msg})
+            (p/send-group-user-msg {:group-id group-id
+                                    :content  msg})
             (add-to-chat "group-chat" (p/my-identity) msg)))))))
 
 (defn start-group-chat []
-  (let [identities (-> (g/getElement "to-identities")
-                       (f/getValue)
-                       (s/split "\n"))]
+  (let [identities (get-group-identities)]
     (add-to-chat "group-chat" ":" (str "Starting group chat with " identities))
     (let [group-id (p/start-group-chat identities)]
       (set-group-id! group-id))))
+
+(defn add-new-peer-to-group []
+  (let [input        (g/getElement "new-peer")
+        new-identity (-> input (f/getValue))
+        group-id     (:group-id @state)]
+    (f/setValue input "")
+    (p/group-add-participant group-id new-identity)))
 
 (let [button (g/getElement "connect-button")]
   (e/listen button EventType/CLICK
@@ -122,6 +141,11 @@
       (g/setProperties button #js {:disabled "disabled"})
       (g/setProperties (g/getElement "to-identities") #js {:disabled "disabled"})
       (start-group-chat))))
+
+(let [button (g/getElement "add-peer-button")]
+  (e/listen button EventType/CLICK
+    (fn [e]
+      (add-new-peer-to-group))))
 
 (comment
 

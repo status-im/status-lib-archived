@@ -5,12 +5,11 @@
             [syng-im.protocol.state.delivery :as state]
             [syng-im.protocol.state.state :as s]
             [syng-im.protocol.web3 :as whisper]
-            [syng-im.protocol.user-handler :refer [invoke-user-handler]])
+            [syng-im.protocol.user-handler :refer [invoke-user-handler]]
+            [syng-im.protocol.defaults :refer [max-retry-send-count
+                                               ack-wait-timeout-ms
+                                               check-delivery-interval-msg]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
-
-(def max-retry-send-count 5)
-(def ack-wait-timeout-ms (t/millis 5000))
-(def check-delivery-interval-msg 100)
 
 (defn expired? [timestamp]
   (t/before? (t/plus timestamp ack-wait-timeout-ms) (t/now)))

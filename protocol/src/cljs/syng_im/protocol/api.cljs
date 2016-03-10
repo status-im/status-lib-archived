@@ -22,7 +22,11 @@
             [syng-im.protocol.handler :refer [handle-incoming-whisper-msg]]
             [syng-im.protocol.user-handler :refer [invoke-user-handler]]
             [syng-im.utils.encryption :refer [new-keypair]]
-            [syng-im.protocol.group-chat :refer [send-group-msg]]
+            [syng-im.protocol.group-chat :refer [send-group-msg
+                                                 init-group-chat-msg
+                                                 group-add-participant-msg
+                                                 group-remove-participant-msg
+                                                 removed-from-group-msg]]
             [syng-im.protocol.defaults :refer [default-content-type]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
@@ -101,12 +105,7 @@
     (save-identities store group-topic identities)
     (listen connection handle-incoming-whisper-msg {:topics [group-topic]})
     (doseq [ident identities :when (not (= ident my-identity))]
-      (let [{:keys [msg-id msg]} (make-msg {:from    my-identity
-                                            :to      ident
-                                            :payload {:type        :init-group-chat
-                                                      :group-topic group-topic
-                                                      :identities  identities
-                                                      :keypair     keypair}})]
+      (let [{:keys [msg-id msg]} (init-group-chat-msg ident group-topic identities keypair)]
         (add-pending-message msg-id msg {:internal? true})
         (post-msg connection msg)))
     group-topic))
@@ -118,12 +117,7 @@
                        (conj new-peer-identity))
         keypair    (get-keypair store group-id)]
     (save-identities store group-id identities)
-    (let [{:keys [msg-id msg]} (make-msg {:from    (state/my-identity)
-                                          :to      new-peer-identity
-                                          :payload {:type        :init-group-chat
-                                                    :group-topic group-id
-                                                    :identities  identities
-                                                    :keypair     keypair}})]
+    (let [{:keys [msg-id msg]} (group-add-participant-msg new-peer-identity group-id identities keypair)]
       (add-pending-message msg-id msg {:internal? true})
       (post-msg connection msg))
     (send-group-msg {:group-id  group-id
@@ -141,18 +135,10 @@
     (save-identities store group-id identities)
     (save-keypair store group-id keypair)
     (doseq [ident identities :when (not (= ident my-identity))]
-      (let [{:keys [msg-id msg]} (make-msg {:from    my-identity
-                                            :to      ident
-                                            :payload {:type             :group-removed-participant
-                                                      :group-topic      group-id
-                                                      :keypair          keypair
-                                                      :removed-identity identity-to-remove}})]
+      (let [{:keys [msg-id msg]} (group-remove-participant-msg ident group-id keypair identity-to-remove)]
         (add-pending-message msg-id msg {:internal? true})
         (post-msg connection msg)))
-    (let [{:keys [msg-id msg]} (make-msg {:from    my-identity
-                                          :to      identity-to-remove
-                                          :payload {:type        :removed-from-group
-                                                    :group-topic group-id}})]
+    (let [{:keys [msg-id msg]} (removed-from-group-msg group-id identity-to-remove)]
       (add-pending-message msg-id msg {:internal? true})
       (post-msg connection msg))))
 

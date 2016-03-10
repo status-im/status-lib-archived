@@ -16,15 +16,15 @@
   (let [key (topic-identities-key topic)]
     (s/put storage key identities)))
 
+(defn get-identities [storage topic]
+  (let [key (topic-identities-key topic)]
+    (s/get storage key)))
+
 (defn add-identity [storage topic identity]
   (let [identities (get-identities storage topic)]
     (when-not (contains? identities identity)
       (->> (conj identities identity)
-           (save-identities storage group-id)))))
-
-(defn get-identities [storage topic]
-  (let [key (topic-identities-key topic)]
-    (s/get storage key)))
+           (save-identities storage topic)))))
 
 (defn get-peer-identities [storage topic]
   (-> (get-identities storage topic)
@@ -37,3 +37,9 @@
 (defn get-keypair [storage topic]
   (let [key (topic-keypair-key topic)]
     (s/get storage key)))
+
+(defn remove-group-data [storage topic]
+  (let [keypair-key    (topic-keypair-key topic)
+        identities-key (topic-identities-key topic)]
+    (s/delete storage keypair-key)
+    (s/delete storage identities-key)))

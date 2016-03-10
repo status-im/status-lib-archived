@@ -10,11 +10,13 @@
                                                        get-identities
                                                        chat-exists?
                                                        get-keypair
-                                                       add-identity]]
+                                                       add-identity
+                                                       remove-group-data]]
             [syng-im.protocol.web3 :refer [to-ascii
                                            make-msg
                                            post-msg
-                                           listen]]
+                                           listen
+                                           stop-listener]]
             [syng-im.protocol.user-handler :refer [invoke-user-handler]]
             [syng-im.protocol.defaults :refer [default-content-type]]))
 
@@ -81,6 +83,32 @@
                                                  :group-id group-id
                                                  :from     from})))
 
+(defn handle-group-removed-participant [web3 from {:keys [keypair group-topic msg-id removed-identity]}]
+  (let [store      (storage)
+        identities (get-identities store group-topic)]
+    (if (get identities from)
+      (do
+        (send-ack web3 from msg-id)
+        (save-keypair store group-topic keypair)
+        (->> (disj identities removed-identity)
+             (save-identities store group-topic))
+        (invoke-user-handler :group-removed-participant {:identity removed-identity
+                                                         :group-id group-topic
+                                                         :from     from}))
+      (log/warn "Got group-removed-participant message from" from "who is not part the group" group-topic))))
+
+(defn handle-removed-from-group [web3 from {:keys [group-topic msg-id]}]
+  (let [store      (storage)
+        identities (get-identities store group-topic)]
+    (if (get identities from)
+      (do
+        (send-ack web3 from msg-id)
+        (remove-group-data store group-topic)
+        (stop-listener group-topic)
+        (invoke-user-handler :removed-from-group {:group-id group-topic
+                                                  :from     from}))
+      (log/warn "Got removed-from-group message from" from "who is not part the group" group-topic))))
+
 (defn handle-incoming-whisper-msg [web3 msg]
   (log/info "Got whisper message:" msg)
   (let [{from    :from
@@ -97,5 +125,7 @@
           :user-msg (handle-user-msg web3 from payload)
           :init-group-chat (handle-new-group-chat web3 from payload)
           :group-user-msg (handle-group-user-msg web3 from payload)
-          :group-new-participant (handle-group-new-participant web3 from payload)))
+          :group-new-participant (handle-group-new-participant web3 from payload)
+          :group-removed-participant (handle-group-removed-participant web3 from payload)
+          :removed-from-group (handle-removed-from-group web3 from payload)))
       (log/warn "My identity:" (state/my-identity) "Message To:" to "Message is encrypted for someone else, ignoring"))))

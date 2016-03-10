@@ -12,6 +12,12 @@
 (defn add-filter [topics filter]
   (swap! state assoc-in [:filters topics] filter))
 
+(defn get-filter [topics]
+  (get-in @state [:filters topics]))
+
+(defn remove-filter [topics]
+  (swap! state update-in [:filters] dissoc topics))
+
 (defn set-storage [storage]
   (swap! state assoc :storage storage))
 

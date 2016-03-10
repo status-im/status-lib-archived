@@ -83,7 +83,7 @@
 (defn listen
   "Returns a filter which can be stopped with (stop-whisper-listener)"
   ([web3 msg-handler]
-    (listen web3 msg-handler {}))
+   (listen web3 msg-handler {}))
   ([web3 msg-handler {:keys [topics] :as opts :or {topics []}}]
    (let [topics (conj topics syng-app-topic)
          shh    (whisper web3)
@@ -93,8 +93,11 @@
                                                       (msg-handler web3 msg))))]
      (state/add-filter topics filter))))
 
-(defn stop-listener [filter]
-  (.stopWatching filter))
+(defn stop-listener [group-topic]
+  (let [topics (conj [group-topic] syng-app-topic)
+        filter (state/get-filter topics)]
+    (.stopWatching filter)
+    (state/remove-filter topics)))
 
 
 

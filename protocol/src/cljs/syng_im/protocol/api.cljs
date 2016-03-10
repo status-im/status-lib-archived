@@ -52,6 +52,8 @@
    :new-group-chat [from group-id]
    :group-chat-invite-acked [from group-id]
    :group-new-participant [identity group-id]
+   :group-removed-participant [from identity group-id]
+   :removed-from-group [from group-id]
    :initialized [identity]
 
    :new-msg, new-group-msg, msg-acked should be handled idempotently (may be called multiple times for the same msg-id)
@@ -128,6 +130,31 @@
                      :type      :group-new-participant
                      :payload   {:identity new-peer-identity}
                      :internal? true})))
+
+(defn group-remove-participant [group-id identity-to-remove]
+  (let [store       (storage)
+        connection  (connection)
+        identities  (-> (get-identities store group-id)
+                        (disj identity-to-remove))
+        keypair     (new-keypair)
+        my-identity (my-identity)]
+    (save-identities store group-id identities)
+    (save-keypair store group-id keypair)
+    (doseq [ident identities :when (not (= ident my-identity))]
+      (let [{:keys [msg-id msg]} (make-msg {:from    my-identity
+                                            :to      ident
+                                            :payload {:type             :group-removed-participant
+                                                      :group-topic      group-id
+                                                      :keypair          keypair
+                                                      :removed-identity identity-to-remove}})]
+        (add-pending-message msg-id msg {:internal? true})
+        (post-msg connection msg)))
+    (let [{:keys [msg-id msg]} (make-msg {:from    my-identity
+                                          :to      identity-to-remove
+                                          :payload {:type        :removed-from-group
+                                                    :group-topic group-id}})]
+      (add-pending-message msg-id msg {:internal? true})
+      (post-msg connection msg))))
 
 (defn current-connection []
   (connection))

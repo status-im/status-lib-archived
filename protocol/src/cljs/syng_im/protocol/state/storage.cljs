@@ -4,4 +4,5 @@
 (defprotocol Storage
   (put [this key value])
   (get [this key])
-  (contains-key? [this key]))
+  (contains-key? [this key])
+  (delete [this key]))

@@ -23,12 +23,14 @@
 
 (defrecord MapStore [m]
   st/Storage
-  (put [{:keys [m]} key value]
+  (put [this key value]
     (swap! m assoc key value))
-  (get [{:keys [m]} key]
+  (get [this key]
     (get @m key))
-  (contains-key? [{:keys [m]} key]
-    (contains? @m key)))
+  (contains-key? [this key]
+    (contains? @m key))
+  (delete [this key]
+    (swap! m dissoc key)))
 
 (defonce state (atom {:group-id         nil
                       :group-identities nil
@@ -55,6 +57,18 @@
   (-> (g/getElement "to-identities")
       (f/getValue)
       (s/split "\n")))
+
+(defn add-identity-to-group-list [identity]
+  (-> (get-group-identities)
+      (set)
+      (conj identity)
+      (set-group-identities)))
+
+(defn remove-identity-from-group-list [identity]
+  (-> (get-group-identities)
+      (set)
+      (disj identity)
+      (set-group-identities)))
 
 (defn start []
   (let [rpc-url (-> (g/getElement "rpc-url")
@@ -87,10 +101,12 @@
                                               (add-to-chat "group-chat" from content))
                              :group-new-participant (let [{:keys [group-id identity from]} event]
                                                       (add-to-chat "group-chat" ":" (str (shorten from) " added " (shorten identity) " to group chat"))
-                                                      (-> (get-group-identities)
-                                                          (set)
-                                                          (conj identity)
-                                                          (set-group-identities)))
+                                                      (add-identity-to-group-list identity))
+                             :group-removed-participant (let [{:keys [group-id identity from]} event]
+                                                          (add-to-chat "group-chat" ":" (str (shorten from) " removed " (shorten identity) " from group chat"))
+                                                          (remove-identity-from-group-list identity))
+                             :removed-from-group (let [{:keys [group-id from]} event]
+                                                   (add-to-chat "group-chat" ":" (str (shorten from) " removed you from group chat")))
                              (add-to-chat "chat" ":" (str "Don't know how to handle " event-type))))})
     (e/listen (-> (g/getElement "msg")
                   (goog.events.KeyHandler.))
@@ -129,6 +145,14 @@
     (f/setValue input "")
     (p/group-add-participant group-id new-identity)))
 
+(defn remove-peer-from-group []
+  (let [input            (g/getElement "new-peer")
+        removed-identity (-> input (f/getValue))
+        group-id         (:group-id @state)]
+    (f/setValue input "")
+    (remove-identity-from-group-list removed-identity)
+    (p/group-remove-participant group-id removed-identity)))
+
 (let [button (g/getElement "connect-button")]
   (e/listen button EventType/CLICK
     (fn [e]
@@ -146,6 +170,11 @@
   (e/listen button EventType/CLICK
     (fn [e]
       (add-new-peer-to-group))))
+
+(let [button (g/getElement "remove-peer-button")]
+  (e/listen button EventType/CLICK
+    (fn [e]
+      (remove-peer-from-group))))
 
 (comment
 

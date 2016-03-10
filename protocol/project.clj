@@ -1,4 +1,4 @@
-(defproject syng-im/protocol "0.1.0"
+(defproject syng-im/protocol "0.1.1"
   :description "FIXME: write this!"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -11,11 +11,12 @@
                  [org.clojure/core.async "0.2.374" :exclusions [org.clojure/tools.reader]]
                  [cljsjs/chance "0.7.3-0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
-                 [cljsjs/web3 "0.15.3-0"]]
+                 [cljsjs/web3 "0.15.3-0"]
+                 [cljsjs/eccjs "0.3.1-0"]]
 
   :plugins [[lein-cljsbuild "1.1.2" :exclusions [[org.clojure/clojure]]]]
 
-  :source-paths ["src"]
+  :source-paths ["src/cljs"]
 
   :clean-targets ^{:protect false} ["resources/public/js/compiled" "target"]
 

@@ -11,10 +11,13 @@
                  [org.clojure/core.async "0.2.374"
                   :exclusions [org.clojure/tools.reader]]
                  [com.cemerick/piggieback "0.2.1"]
+                 ;; comment for prod build
                  [cljsjs/chance "0.7.3-0"]
                  [cljsjs/web3 "0.15.3-0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
-                 ;[syng-im/protocol "0.1.0"]
+                 [cljsjs/eccjs "0.3.1-0"]
+                 ;; uncomment for prod build
+                 ;[syng-im/protocol "0.1.1"]
                  ]
 
   :plugins [[lein-figwheel "0.5.0-6"]

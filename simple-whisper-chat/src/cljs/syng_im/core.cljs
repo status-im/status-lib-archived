@@ -107,6 +107,8 @@
                                                           (remove-identity-from-group-list identity))
                              :removed-from-group (let [{:keys [group-id from]} event]
                                                    (add-to-chat "group-chat" ":" (str (shorten from) " removed you from group chat")))
+                             :participant-left-group (let [{:keys [group-id from]} event]
+                                                       (add-to-chat "group-chat" ":" (str (shorten from) " left group chat")))
                              (add-to-chat "chat" ":" (str "Don't know how to handle " event-type))))})
     (e/listen (-> (g/getElement "msg")
                   (goog.events.KeyHandler.))
@@ -153,6 +155,10 @@
     (remove-identity-from-group-list removed-identity)
     (p/group-remove-participant group-id removed-identity)))
 
+(defn leave-group []
+  (let [group-id (:group-id @state)]
+    (p/leave-group-chat group-id)))
+
 (let [button (g/getElement "connect-button")]
   (e/listen button EventType/CLICK
     (fn [e]
@@ -175,6 +181,11 @@
   (e/listen button EventType/CLICK
     (fn [e]
       (remove-peer-from-group))))
+
+(let [button (g/getElement "leave-group-button")]
+  (e/listen button EventType/CLICK
+    (fn [e]
+      (leave-group))))
 
 (comment
 

@@ -8,6 +8,9 @@
 (defn topic-identities-key [topic]
   (str "group-chat.topic-identities." topic))
 
+(defn topic-admin-ident-key [topic]
+  (str "group-chat.topic-admin-ident." topic))
+
 (defn save-keypair [storage topic keypair]
   (let [key (topic-keypair-key topic)]
     (s/put storage key keypair)))
@@ -26,6 +29,16 @@
       (->> (conj identities identity)
            (save-identities storage topic)))))
 
+(defn remove-identity [storage topic identity]
+  (let [identities (get-identities storage topic)]
+    (when (contains? identities identity)
+      (->> (disj identities identity)
+           (save-identities storage topic)))))
+
+(defn group-member? [storage topic identity]
+  (let [identities (get-identities storage topic)]
+    (contains? identities identity)))
+
 (defn get-peer-identities [storage topic]
   (-> (get-identities storage topic)
       (disj (state/my-identity))))
@@ -43,3 +56,11 @@
         identities-key (topic-identities-key topic)]
     (s/delete storage keypair-key)
     (s/delete storage identities-key)))
+
+(defn save-group-admin [storage topic identity]
+  (let [key (topic-admin-ident-key topic)]
+    (s/put storage key identity)))
+
+(defn group-admin? [storage topic identity]
+  (let [key (topic-admin-ident-key topic)]
+    (= identity (s/get storage key))))

@@ -13,8 +13,8 @@
              :encrypt?   true
              :public-key public-key
              :payload    payload
-             :clear-info {:group-id group-id
-                          :type     type}}))
+             :clear-info {:group-topic group-id
+                          :type        type}}))
 
 (defn send-group-msg [{:keys [group-id payload type internal?] :or {internal? false}}]
   (let [store (storage)

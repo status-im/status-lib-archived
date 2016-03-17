@@ -217,10 +217,15 @@
   ;(p/make-whisper-msg web3-2 user2-ident user1-ident "Hello World!")
 
 
-  (require '[syng-im.protocol.whisper :as w])
+  (require '[syng-im.protocol.web3 :as w])
   (def web3 (w/make-web3 "http://localhost:4546"))
   (.newIdentity (w/whisper web3) (fn [error result]
                                    (println error result)))
+
+  (.sendAsync (.-currentProvider web3)
+              (clj->js [{:jsonrpc "2.0" :method "shh_addIdentity" :params ["0x585493cda18f2b4314afb51224e9c1e913780642783ca11e683a66cfaa9eec94"] :id 99999999999}])
+              (fn [error result]
+                (println error result)))
 
   )
 

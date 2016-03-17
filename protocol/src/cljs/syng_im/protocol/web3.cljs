@@ -45,6 +45,38 @@
     (.newIdentity (.-shh web3) callback)
     result-channel))
 
+(defn create-identity [web3]
+  (let [result-channel (chan)]
+    (.sendAsync (.-currentProvider web3)
+                (clj->js [{:jsonrpc "2.0" :method "shh_createIdentity" :params [] :id 99999999999}])
+                (fn [error result]
+                  (if error
+                    (do
+                      (log/error (str "Call to shh_createIdentity failed" ":") error)
+                      (invoke-user-handler :error {:error-msg "Call to shh_createIdentity failed"
+                                                   :details   error}))
+                    (let [[public private] (-> (js->clj result :keywordize-keys true)
+                                               (first)
+                                               :result)]
+                      (put! result-channel {:public  public
+                                            :private private})))
+                  (close! result-channel)))
+    result-channel))
+
+(defn add-identity [web3 private-key]
+  (let [result-channel (chan)]
+    (.sendAsync (.-currentProvider web3)
+                (clj->js [{:jsonrpc "2.0" :method "shh_addIdentity" :params [private-key] :id 99999999999}])
+                (fn [error result]
+                  (if error
+                    (do
+                      (log/error (str "Call to shh_addIdentity failed" ":") error)
+                      (invoke-user-handler :error {:error-msg "Call to shh_addIdentity failed"
+                                                   :details   error}))
+                    (put! result-channel (js->clj result)))
+                  (close! result-channel)))
+    result-channel))
+
 (defn post-msg [web3 msg]
   (let [js-msg (clj->js msg)]
     (log/info "Sending whisper message:" js-msg)

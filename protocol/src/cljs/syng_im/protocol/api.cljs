@@ -21,7 +21,8 @@
                                            make-msg
                                            post-msg
                                            make-web3
-                                           new-identity
+                                           create-identity
+                                           add-identity
                                            stop-listener]]
             [syng-im.protocol.handler :refer [handle-incoming-whisper-msg]]
             [syng-im.protocol.user-handler :refer [invoke-user-handler]]
@@ -37,9 +38,6 @@
 
 (defn create-connection [ethereum-rpc-url]
   (make-web3 ethereum-rpc-url))
-
-(defn create-identity [connection]
-  (new-identity connection))
 
 (defn my-identity []
   (state/my-identity))
@@ -73,10 +71,14 @@
   (set-handler handler)
   (go
     (let [connection (create-connection ethereum-rpc-url)
-          identity   (or identity
-                         (<! (create-identity connection)))]
+          {:keys [public private] :as identity} (if identity
+                                                  (do
+                                                    (<! (->> (:private identity)
+                                                             (add-identity connection)))
+                                                    identity)
+                                                  (<! (create-identity connection)))]
       (set-connection connection)
-      (set-identity identity)
+      (set-identity public)
       (listen connection handle-incoming-whisper-msg)
       (start-delivery-loop)
       (doseq [group-id active-group-ids]

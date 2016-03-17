@@ -5,17 +5,22 @@
 (defn timestamp []
   (tf/unparse (:hour-minute-second-fraction tf/formatters) (t/now)))
 
+(defn to-js [args]
+  (->> (cons (timestamp) args)
+       (mapv clj->js)
+       (into-array)))
+
+(defn debug [& args]
+  (.apply (.-log js/console) js/console (to-js args)))
+
 (defn info [& args]
-  (let [args (cons (timestamp) args)]
-    (.apply (.-log js/console) js/console (into-array args))))
+  (.apply (.-log js/console) js/console (to-js args)))
 
 (defn warn [& args]
-  (let [args (cons (timestamp) args)]
-    (.apply (.-warn js/console) js/console (into-array args))))
+  (.apply (.-warn js/console) js/console (to-js args)))
 
 (defn error [& args]
-  (let [args (cons (timestamp) args)]
-    (.apply (.-error js/console) js/console (into-array args))))
+  (.apply (.-error js/console) js/console (to-js args)))
 
 
 (comment

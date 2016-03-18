@@ -18,11 +18,23 @@
 (defn decrypt [private-key content]
   (.decrypt js/ecc private-key content))
 
+(defn password-encrypt [password content]
+  (-> (.-sjcl js/ecc)
+      (.encrypt password content)))
+
+(defn password-decrypt [password content]
+  (-> (.-sjcl js/ecc)
+      (.decrypt password content)))
+
+
 (comment
   (init)
 
   (def keypair (new-keypair))
   (def encd (encrypt (:public keypair) "Hello world"))
   (decrypt (:private keypair) encd)
+
+  (->> (password-encrypt "password" "text")
+       (password-decrypt "password"))
 
   )

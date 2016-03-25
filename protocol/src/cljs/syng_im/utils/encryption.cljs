@@ -37,4 +37,12 @@
   (->> (password-encrypt "password" "text")
        (password-decrypt "password"))
 
+  (require '[cljs.reader :refer [read-string]])
+
+  (read-string "sdfsd")
+
+  (read-string (print-str "sdfsdf"))
+
+  (read-string (with-out-str (pr "sdfsf")))
+
   )

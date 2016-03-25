@@ -51,7 +51,7 @@
 
    :event-type can be:
 
-   :new-msg - [from payload]
+   :new-msg - [from to payload]
    :new-group-msg [from group-id payload]
    :error - [error-msg details]
    :msg-acked [msg-id from]

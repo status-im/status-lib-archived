@@ -47,9 +47,10 @@
                                                   ack-info)})]
      (post-msg web3 msg))))
 
-(defn handle-user-msg [web3 from {:keys [msg-id] :as payload}]
+(defn handle-user-msg [web3 from to {:keys [msg-id] :as payload}]
   (send-ack web3 from msg-id)
   (invoke-user-handler :new-msg {:from    from
+                                 :to      to
                                  :payload payload}))
 
 (declare handle-incoming-whisper-msg)
@@ -143,7 +144,7 @@
                                               (read-string))]
         (case msg-type
           :ack (handle-ack from payload)
-          :user-msg (handle-user-msg web3 from payload)
+          :user-msg (handle-user-msg web3 from to payload)
           :init-group-chat (handle-new-group-chat web3 from payload)
           :group-removed-participant (handle-group-removed-participant web3 from payload)
           :removed-from-group (handle-removed-from-group web3 from payload)

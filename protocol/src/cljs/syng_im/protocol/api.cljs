@@ -102,23 +102,25 @@
                               :content-type default-content-type}}))
 
 (defn start-group-chat
-  [identities]
-  (let [group-topic (random/id)
-        keypair     (new-keypair)
-        store       (storage)
-        connection  (connection)
-        my-identity (state/my-identity)
-        identities  (-> (set identities)
-                        (conj my-identity))]
-    (save-keypair store group-topic keypair)
-    (save-identities store group-topic identities)
-    (save-group-admin store group-topic my-identity)
-    (listen connection handle-incoming-whisper-msg {:topics [group-topic]})
-    (doseq [ident identities :when (not (= ident my-identity))]
-      (let [{:keys [msg-id msg]} (init-group-chat-msg ident group-topic identities keypair)]
-        (add-pending-message msg-id msg {:internal? true})
-        (post-msg connection msg)))
-    group-topic))
+  ([identities]
+    (start-group-chat identities nil))
+  ([identities group-name]
+   (let [group-topic (random/id)
+         keypair     (new-keypair)
+         store       (storage)
+         connection  (connection)
+         my-identity (state/my-identity)
+         identities  (-> (set identities)
+                         (conj my-identity))]
+     (save-keypair store group-topic keypair)
+     (save-identities store group-topic identities)
+     (save-group-admin store group-topic my-identity)
+     (listen connection handle-incoming-whisper-msg {:topics [group-topic]})
+     (doseq [ident identities :when (not (= ident my-identity))]
+       (let [{:keys [msg-id msg]} (init-group-chat-msg ident group-topic identities keypair group-name)]
+         (add-pending-message msg-id msg {:internal? true})
+         (post-msg connection msg)))
+     group-topic)))
 
 (defn group-add-participant
   "Only call if you are the group-admin"

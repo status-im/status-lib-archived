@@ -25,11 +25,12 @@
     (post-msg (connection) msg)
     new-msg))
 
-(defn init-group-chat-msg [to group-topic identities keypair]
+(defn init-group-chat-msg [to group-topic identities keypair group-name]
   (make-msg {:from    (state/my-identity)
              :to      to
              :payload {:type        :init-group-chat
                        :group-topic group-topic
+                       :group-name  group-name
                        :identities  identities
                        :keypair     keypair}}))
 

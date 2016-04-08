@@ -16,6 +16,8 @@
                                                        group-admin?
                                                        remove-identity
                                                        group-member?]]
+            [syng-im.protocol.discovery :refer [handle-discover-message
+                                                handle-discover-response]]
             [syng-im.protocol.web3 :refer [to-ascii
                                            make-msg
                                            post-msg
@@ -150,5 +152,7 @@
           :removed-from-group (handle-removed-from-group web3 from payload)
           :group-user-msg (handle-group-msg web3 msg-type from payload)
           :group-new-participant (handle-group-msg web3 msg-type from payload)
-          :left-group (handle-group-msg web3 msg-type from payload)))
+          :left-group (handle-group-msg web3 msg-type from payload)
+          :discover (handle-discover-message web3 from payload)
+          :discover-response (handle-discover-response web3 from payload)))
       (log/warn "My identity:" (state/my-identity) "Message To:" to "Message is encrypted for someone else, ignoring"))))

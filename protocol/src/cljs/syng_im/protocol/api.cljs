@@ -59,8 +59,8 @@
    :new-group-chat [from group-id]
    :group-chat-invite-acked [ack-msg-id from group-id]
    :group-new-participant [identity group-id from msg-id]
-   :group-removed-participant [from identity group-id]
-   :removed-from-group [from group-id]
+   :group-removed-participant [from identity group-id msg-id]
+   :removed-from-group [from group-id msg-id]
    :participant-left-group [from group-id]
    :initialized [identity]
 

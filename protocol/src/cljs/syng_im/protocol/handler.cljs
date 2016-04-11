@@ -93,7 +93,8 @@
           (add-identity store group-topic identity)
           (invoke-user-handler :group-new-participant {:identity identity
                                                        :group-id group-topic
-                                                       :from     from})))
+                                                       :from     from
+                                                       :msg-id   msg-id})))
       (log/warn "Ignoring group-new-participant for group" group-topic "from a non group-admin user" from))))
 
 (defn handle-group-removed-participant [web3 from {:keys [keypair group-topic msg-id removed-identity]}]

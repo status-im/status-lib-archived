@@ -61,7 +61,7 @@
    :group-new-participant [identity group-id from msg-id]
    :group-removed-participant [from identity group-id msg-id]
    :removed-from-group [from group-id msg-id]
-   :participant-left-group [from group-id]
+   :participant-left-group [from group-id msg-id]
    :initialized [identity]
 
    :new-msg, new-group-msg, msg-acked should be handled idempotently (may be called multiple times for the same msg-id)

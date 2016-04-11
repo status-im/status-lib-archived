@@ -130,7 +130,8 @@
     (when (group-member? store group-topic from)
       (remove-identity store group-topic from)
       (invoke-user-handler :participant-left-group {:group-id group-topic
-                                                    :from     from}))))
+                                                    :from     from
+                                                    :msg-id   msg-id}))))
 
 (defn handle-group-msg [web3 msg-type from {:keys [enc-payload group-topic]}]
   (if-let [payload (decrypt-group-msg group-topic enc-payload)]

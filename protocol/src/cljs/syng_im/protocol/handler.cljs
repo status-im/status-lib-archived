@@ -4,6 +4,7 @@
             [syng-im.utils.encryption :refer [decrypt]]
             [syng-im.protocol.state.state :as state :refer [storage]]
             [syng-im.protocol.state.delivery :refer [internal?
+                                                     pending?
                                                      update-pending-message]]
             [syng-im.protocol.state.group-chat :refer [save-keypair
                                                        save-identities
@@ -24,16 +25,19 @@
             [syng-im.protocol.user-handler :refer [invoke-user-handler]]
             [syng-im.protocol.defaults :refer [default-content-type]]))
 
-(defn handle-ack [from {:keys [ack-msg-id] :as payload}]
+(defn handle-ack [from {:keys [ack-msg-id msg-id] :as payload}]
   (log/info "Got ack for message:" ack-msg-id "from:" from)
+  (when-not (pending? ack-msg-id)
+    (log/info "Got ack for message" ack-msg-id "which isn't pending."))
   (let [internal-message? (internal? ack-msg-id)]
     (update-pending-message ack-msg-id from)
     (when-not internal-message?
       (invoke-user-handler :msg-acked {:msg-id ack-msg-id
                                        :from   from}))
     (when-let [group-topic (payload :group-invite)]
-      (invoke-user-handler :group-chat-invite-acked {:from     from
-                                                     :group-id group-topic}))))
+      (invoke-user-handler :group-chat-invite-acked {:from       from
+                                                     :ack-msg-id msg-id
+                                                     :group-id   group-topic}))))
 
 (defn send-ack
   ([web3 to msg-id]

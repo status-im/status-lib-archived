@@ -57,7 +57,7 @@
    :msg-acked [msg-id from]
    :delivery-failed [msg-id]
    :new-group-chat [from group-id]
-   :group-chat-invite-acked [from group-id]
+   :group-chat-invite-acked [ack-msg-id from group-id]
    :group-new-participant [identity group-id]
    :group-removed-participant [from identity group-id]
    :removed-from-group [from group-id]

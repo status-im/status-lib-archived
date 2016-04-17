@@ -16,6 +16,9 @@
                                                        save-group-admin
                                                        group-admin?
                                                        remove-group-data]]
+            [syng-im.protocol.state.discovery :refer [save-topics
+                                                      get-topics
+                                                      save-status]]
             [syng-im.protocol.delivery :refer [start-delivery-loop]]
             [syng-im.protocol.web3 :refer [listen
                                            make-msg
@@ -32,6 +35,11 @@
                                                  group-add-participant-msg
                                                  group-remove-participant-msg
                                                  removed-from-group-msg]]
+            [syng-im.protocol.discovery :refer [init-discovery
+                                                get-hashtag-topics
+                                                discovery-response-topic
+                                                discovery-search-topic
+                                                discovery-search-message]]
             [syng-im.protocol.defaults :refer [default-content-type]]
             [syng-im.utils.logging :as log])
   (:require-macros [cljs.core.async.macros :refer [go]]))
@@ -83,6 +91,8 @@
       (start-delivery-loop)
       (doseq [group-id active-group-ids]
         (listen connection handle-incoming-whisper-msg {:topics [group-id]}))
+      (init-discovery)
+      (listen connection handle-incoming-whisper-msg {:topics [discovery-response-topic]})
       (invoke-user-handler :initialized {:identity identity}))))
 
 (defn send-user-msg [{:keys [to content]}]
@@ -172,6 +182,23 @@
                      :internal? true})
     (remove-group-data store group-id)
     (stop-listener group-id)))
+
+(defn broadcast-discover-status [status hashtags]
+  (let [topics (get-hashtag-topics hashtags)]
+    (listen connection handle-incoming-whisper-msg {:topics topics})
+    (save-topics topics)
+    (save-status status)))
+
+(defn stop-broadcasting-discover []
+  (let [topics (get-topics)]
+    (doseq [topic topics]
+      (stop-listener topic))
+    (save-status "")))
+
+(defn search-discover [hashtags]
+  (let [{:keys [msg-id msg]} (discovery-search-message hashtags)]
+    (add-pending-message msg-id msg {:internal? true})
+    (post-msg connection msg)))
 
 (defn current-connection []
   (connection))

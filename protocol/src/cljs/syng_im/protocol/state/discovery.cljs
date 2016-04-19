@@ -22,8 +22,8 @@
 
 (defn save-topics [topics]
   (let [store (storage)]
-    (s/put store discovery-topics (clojure.string/join ":" topics))))
+    (s/put store discovery-topics topics)))
 
 (defn get-topics[]
   (let [store (storage)]
-    (clojure.string/split (s/get store discovery-topics) #":")))
+    (s/get store discovery-topics)))

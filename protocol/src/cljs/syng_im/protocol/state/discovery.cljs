@@ -27,3 +27,5 @@
 (defn get-topics[]
   (let [store (storage)]
     (clojure.string/split (s/get store discovery-topics) #":")))
+
+; the store serializes and deserializes clojure data structures, so you could just pass the vector and get it back

@@ -20,10 +20,6 @@
 (defn get-hashtag-topics [hashtags]
   (map #(str discovery-hashtag-topic %) hashtags))
 
-(defn get-location []
-  ;; TODO: get location
-  {:latitude 10.5 :longitude 4.7})
-
 (defn discover-message
   ([payload type]
    (discover-message payload type nil))
@@ -46,15 +42,18 @@
     (post-msg (connection) msg)
     new-msg))
 
-(defn send-broadcast-status [status]
+(defn send-broadcast-status [status location]
   (send-discover-message {:type :discover-broadcast
                           :payload {:status status
-                                    :location (get-location)}}))
+                                    :location location}}))
 
 (defn broadcast-status []
   (let [status (get-status)]
     (if (not (clojure.string/blank? status))
-      (send-broadcast-status status)
+      (.getCurrentPosition (.-geolocation js/navigator)
+                           #(send-broadcast-status status %)
+                           #(send-broadcast-status status nil)
+                           {:enableHighAccuracy false, :timeout 20000, :maximumAge 1000})
     )))
 
 (defn init-discovery []
@@ -92,11 +91,6 @@
         to (:from payload)]
     (send-discovery-response to hashtags)))
 
-
-
-
-
-
 (defn get-next-latitude [latitude]
   (let [base-latitude (int latitude)]
     (if (< base-latitude 90) (inc base-latitude) (- base-latitude 1))))
@@ -133,4 +127,6 @@
   (discover-in-proximity {:latitude 90 :longitude 180} [])
 
   (discover ["test" "lala"])
+
+  (.getCurrentPosition (.-geolocation js/navigator) #(.log js/console %) #(.log js/console %) {:enableHighAccuracy true, :timeout 20000, :maximumAge 1000})
   )

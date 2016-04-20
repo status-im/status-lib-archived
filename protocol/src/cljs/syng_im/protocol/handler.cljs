@@ -36,7 +36,7 @@
                                        :from   from}))
     (when-let [group-topic (payload :group-invite)]
       (invoke-user-handler :group-chat-invite-acked {:from       from
-                                                     :ack-msg-id msg-id
+                                                     :ack-msg-id ack-msg-id
                                                      :group-id   group-topic}))))
 
 (defn send-ack

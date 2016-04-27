@@ -9,7 +9,10 @@
             [goog.events.KeyCodes]
             [goog.events.KeyHandler]
             [goog.events.KeyHandler.EventType :as key-handler-events]
-            [syng-im.protocol.state.storage :as st])
+            [syng-im.protocol.state.storage :as st]
+            [goog.storage.Storage :as gstore]
+            [goog.storage.mechanism.HTML5LocalStorage :as html5localstore]
+            [cljs.reader :refer [read-string]])
   (:import [goog.events EventType]
            [goog.events KeyCodes]))
 
@@ -21,20 +24,25 @@
   ;; (swap! app-state update-in [:__figwheel_counter] inc)
   )
 
-(defrecord MapStore [m]
+(defn local-storage []
+  (let [mech  (goog.storage.mechanism.HTML5LocalStorage.)
+        store (goog.storage.Storage. mech)]
+    store))
+
+(defrecord MapStore [local prefix]
   st/Storage
-  (put [this key value]
-    (swap! m assoc key value))
-  (get [this key]
-    (get @m key))
+  (put [_ key value]
+    (.set local (str prefix key) (pr-str value)))
+  (get [_ key]
+    (some-> (.get local (str prefix key))
+            (read-string)))
   (contains-key? [this key]
-    (contains? @m key))
-  (delete [this key]
-    (swap! m dissoc key)))
+    (st/get this key))
+  (delete [_ key]
+    (.remove local (str prefix key))))
 
 (defonce state (atom {:group-id         nil
-                      :group-identities nil
-                      :storage          (map->MapStore {:m (atom {})})}))
+                      :group-identities nil}))
 
 (defn shorten [s]
   (subs s 0 6))
@@ -71,11 +79,15 @@
       (set-group-identities)))
 
 (defn start []
-  (let [rpc-url (-> (g/getElement "rpc-url")
-                    (f/getValue))]
+  (let [rpc-url  (-> (g/getElement "rpc-url")
+                     (f/getValue))
+        storage  (map->MapStore {:local  (local-storage)
+                                 :prefix rpc-url})
+        identity (st/get storage :identity)]
     (p/init-protocol
       {:ethereum-rpc-url rpc-url
-       :storage          (:storage @state)
+       :storage          storage
+       :identity         identity
        :handler          (fn [{:keys [event-type] :as event}]
                            (log/info "Event:" (clj->js event))
                            (case event-type
@@ -86,6 +98,7 @@
                                           (add-to-chat "chat" ":" (str "Message " msg-id " was acked")))
                              :initialized (let [{:keys [identity]} event]
                                             (add-to-chat "chat" ":" (str "Initialized, identity is " identity))
+                                            (st/put storage :identity identity)
                                             (-> (g/getElement "my-identity")
                                                 (f/setValue identity)))
                              :delivery-failed (let [{:keys [msg-id]} event]
@@ -219,8 +232,8 @@
 
   (require '[syng-im.protocol.web3 :as w])
   (def web3 (w/make-web3 "http://localhost:4546"))
-  (.newIdentity (w/whisper web3) (fn [error result]
-                                   (println error result)))
+  (.newIdentity (w/whisp er web3) (fn [error result]
+                                    (println error result)))
 
   (.sendAsync (.-currentProvider web3)
               (clj->js [{:jsonrpc "2.0" :method "shh_addIdentity" :params ["0x585493cda18f2b4314afb51224e9c1e913780642783ca11e683a66cfaa9eec94"] :id 99999999999}])

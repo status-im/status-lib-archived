@@ -55,7 +55,7 @@
 
 (defn init-protocol
   "Required [handler ethereum-rpc-url storage]
-   Optional [whisper-identity - if not passed a new identity is created automatically
+   Optional [identity - if not passed a new identity is created automatically
              active-group-ids - list of active group ids]
 
    (fn handler [{:keys [event-type...}])
@@ -68,11 +68,11 @@
    :msg-acked [msg-id from]
    :delivery-failed [msg-id]
    :new-group-chat [from group-id]
-   :group-chat-invite-acked [from group-id]
-   :group-new-participant [identity group-id]
-   :group-removed-participant [from identity group-id]
-   :removed-from-group [from group-id]
-   :participant-left-group [from group-id]
+   :group-chat-invite-acked [ack-msg-id from group-id]
+   :group-new-participant [identity group-id from msg-id]
+   :group-removed-participant [from identity group-id msg-id]
+   :removed-from-group [from group-id msg-id]
+   :participant-left-group [from group-id msg-id]
    :initialized [identity]
 
    :new-msg, new-group-msg, msg-acked should be handled idempotently (may be called multiple times for the same msg-id)

@@ -4,6 +4,7 @@
             [syng-im.utils.encryption :refer [decrypt]]
             [syng-im.protocol.state.state :as state :refer [storage]]
             [syng-im.protocol.state.delivery :refer [internal?
+                                                     pending?
                                                      update-pending-message]]
             [syng-im.protocol.state.group-chat :refer [save-keypair
                                                        save-identities
@@ -26,16 +27,19 @@
             [syng-im.protocol.user-handler :refer [invoke-user-handler]]
             [syng-im.protocol.defaults :refer [default-content-type]]))
 
-(defn handle-ack [from {:keys [ack-msg-id] :as payload}]
+(defn handle-ack [from {:keys [ack-msg-id msg-id] :as payload}]
   (log/info "Got ack for message:" ack-msg-id "from:" from)
+  (when-not (pending? ack-msg-id)
+    (log/info "Got ack for message" ack-msg-id "which isn't pending."))
   (let [internal-message? (internal? ack-msg-id)]
     (update-pending-message ack-msg-id from)
     (when-not internal-message?
       (invoke-user-handler :msg-acked {:msg-id ack-msg-id
                                        :from   from}))
     (when-let [group-topic (payload :group-invite)]
-      (invoke-user-handler :group-chat-invite-acked {:from     from
-                                                     :group-id group-topic}))))
+      (invoke-user-handler :group-chat-invite-acked {:from       from
+                                                     :ack-msg-id ack-msg-id
+                                                     :group-id   group-topic}))))
 
 (defn send-ack
   ([web3 to msg-id]
@@ -70,11 +74,11 @@
                                             :group-id   group-topic}))))
 
 (defn decrypt-group-msg [group-topic encrypted-payload]
-  (let [store (storage)
-        {private-key :private} (get-keypair store group-topic)]
-    (-> (decrypt private-key encrypted-payload)
-        (read-string)
-        (assoc :group-topic group-topic))))
+  (let [store (storage)]
+    (when-let [{private-key :private} (get-keypair store group-topic)]
+      (-> (decrypt private-key encrypted-payload)
+          (read-string)
+          (assoc :group-topic group-topic)))))
 
 (defn handle-group-user-msg [web3 from {:keys [msg-id group-topic] :as payload}]
   (send-ack web3 from msg-id)
@@ -91,7 +95,8 @@
           (add-identity store group-topic identity)
           (invoke-user-handler :group-new-participant {:identity identity
                                                        :group-id group-topic
-                                                       :from     from})))
+                                                       :from     from
+                                                       :msg-id   msg-id})))
       (log/warn "Ignoring group-new-participant for group" group-topic "from a non group-admin user" from))))
 
 (defn handle-group-removed-participant [web3 from {:keys [keypair group-topic msg-id removed-identity]}]
@@ -104,7 +109,8 @@
           (remove-identity store group-topic removed-identity)
           (invoke-user-handler :group-removed-participant {:identity removed-identity
                                                            :group-id group-topic
-                                                           :from     from})))
+                                                           :from     from
+                                                           :msg-id   msg-id})))
       (log/warn "Ignoring group-removed-participant for group" group-topic "from a non group-admin user" from))))
 
 (defn handle-removed-from-group [web3 from {:keys [group-topic msg-id]}]
@@ -116,7 +122,8 @@
           (remove-group-data store group-topic)
           (stop-listener group-topic)
           (invoke-user-handler :removed-from-group {:group-id group-topic
-                                                    :from     from})))
+                                                    :from     from
+                                                    :msg-id   msg-id})))
       (log/warn "Ignoring removed-from-group for group" group-topic "from a non group-admin user" from))))
 
 (defn handle-participant-left-group [web3 from {:keys [group-topic msg-id]}]
@@ -125,14 +132,16 @@
     (when (group-member? store group-topic from)
       (remove-identity store group-topic from)
       (invoke-user-handler :participant-left-group {:group-id group-topic
-                                                    :from     from}))))
+                                                    :from     from
+                                                    :msg-id   msg-id}))))
 
 (defn handle-group-msg [web3 msg-type from {:keys [enc-payload group-topic]}]
-  (let [payload (decrypt-group-msg group-topic enc-payload)]
+  (if-let [payload (decrypt-group-msg group-topic enc-payload)]
     (case msg-type
       :group-user-msg (handle-group-user-msg web3 from payload)
       :group-new-participant (handle-group-new-participant web3 from payload)
-      :left-group (handle-participant-left-group web3 from payload))))
+      :left-group (handle-participant-left-group web3 from payload))
+    (log/debug "Could not decrypt group msg, possibly you've left the group.")))
 
 (defn handle-incoming-whisper-msg [web3 msg]
   (log/info "Got whisper message:" msg)

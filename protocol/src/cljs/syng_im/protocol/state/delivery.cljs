@@ -19,6 +19,7 @@
 
 (defn add-pending-message
   ([msg-id msg {:keys [identities internal?] :as opts}]
+   (log/debug "add-pending-message" msg-id msg identities internal?)
    (swap! state (fn [state]
                   (-> (assoc-in state [:pending-messages msg-id] {:msg         msg
                                                                   :retry-count 0

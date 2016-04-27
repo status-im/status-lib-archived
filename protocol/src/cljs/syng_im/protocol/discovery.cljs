@@ -3,74 +3,80 @@
                                                             storage]]
             [syng-im.protocol.state.delivery :refer [add-pending-message]]
             [syng-im.protocol.state.discovery :refer [save-status
-                                                      get-status]]
+                                                      get-name
+                                                      get-status
+                                                      get-hashtags]]
             [syng-im.protocol.user-handler :refer [invoke-user-handler]]
+            [syng-im.utils.logging :as  log]
             [syng-im.protocol.web3 :refer [make-msg
                                            post-msg]]))
 
 (def discovery-response-topic "status-discovery-responses")
 (def discovery-search-topic "status-discovery-searches")
 (def discovery-hashtag-topic "status-search-")
+(def broadcast-interval 1800000)
 
 (defn set-interval
   "Invoke the given function after and every delay milliseconds."
   [delay f]
   (js/setInterval f delay))
 
-(defn get-hashtag-topics [hashtags]
+(defn get-hashtag-topics
+  "Create listen topic from hastags."
+  [hashtags]
   (map #(str discovery-hashtag-topic %) hashtags))
 
-(defn discover-message
-  ([payload type]
-   (discover-message payload type nil))
-  ([payload type to]
-   (if to
-     (make-msg {:from       (state/my-identity)
-                :to         to
-                :topics     [discovery-response-topic]
-                :payload    payload
-                :clear-info {:type type}})
-     (make-msg {:from       (state/my-identity)
-                :topics     [discovery-response-topic]
-                :payload    payload
-                :clear-info {:type type}}))))
-
-(defn discover-message
-  ([payload type]
-   (discover-message payload type nil))
-  ([payload type to]
-   (->> (cond-> {:from       (state/my-identity)
-                 :topics     [discovery-response-topic]
-                 :payload    payload
-                 :clear-info {:type type}}
+(defn discover-response-message
+  "Create discover response message."
+  ([payload]
+   (discover-response-message payload nil))
+  ([payload to]
+   (let [data {:from       (state/my-identity)
+               :topics     [discovery-response-topic]
+               :payload    payload}
+         _ (log/debug "Creating discover message using: " data)]
+   (->> (cond-> data
                 to (assoc :to to))
-        (make-msg))))
+        (make-msg)))))
 
-(defn send-discover-message [{:keys [payload type to] :or {to nil}}]
-  (let [store (storage)
-        {:keys [msg-id msg] :as new-msg} (discover-message payload type to)]
-    (add-pending-message msg-id msg)
+(defn send-discover-message
+  "Send discover message to network."
+  [{:keys [payload to] :or {to nil}}]
+  (let [_ (log/debug "Sending discover status: " payload to)
+        {:keys [msg-id msg] :as new-msg} (discover-response-message payload to)]
     (post-msg (connection) msg)
     new-msg))
 
-(defn send-broadcast-status [status location]
-  (send-discover-message {:type :discover-broadcast
-                          :payload {:status status
-                                    :location location}}))
+(defn send-broadcast-status
+  "Broadcast discover message."
+  [to hashtags location]
+  (let [name (get-name)
+        status (get-status)]
+    (send-discover-message {:payload {:name name
+                                      :status status
+                                      :hashtags hashtags
+                                      :type :discover-response
+                                      :location location}
+                            :to to})))
 
-(defn broadcast-status []
-  (let [status (get-status)]
-    (if (not (clojure.string/blank? status))
+(defn broadcast-status
+  "Broadcast discover message if we have hashtags."
+  ([]
+   (broadcast-status nil))
+  ([to]
+   (let [hashtags (get-hashtags)]
+    (if (> (count hashtags) 0)
       (.getCurrentPosition (.-geolocation js/navigator)
-                           #(send-broadcast-status status %)
-                           #(send-broadcast-status status nil)
-                           {:enableHighAccuracy false, :timeout 20000, :maximumAge 1000}))))
+                           #(send-broadcast-status to hashtags %)
+                           #(send-broadcast-status to hashtags nil)
+                           {:enableHighAccuracy false
+                            :timeout 20000
+                            :maximumAge 1000})))))
 
-(defn init-discovery []
-  (set-interval 1800 broadcast-status))
-
-(defn update-status [status]
-  (save-status status))
+(defn init-discovery
+  "Initialize broadcasting discover message."
+  []
+  (set-interval broadcast-interval broadcast-status))
 
 (defn discovery-search-message [hashtags]
   (let [topics  (get-hashtag-topics hashtags)
@@ -80,37 +86,19 @@
               :topics  topics
               :payload payload}))
 
-;; ^ missing parens
-
-(defn handle-discover-response [web3 from payload]
-  (let [location (:location payload)
-        hashtags (:hashtags payload)]
-    ;; send response data to app. how ???
+(defn handle-discover-response
+  "Handle discover-response messages."
+  [web3 from payload]
+  (let [_ (log/debug "Received discover-response message: " payload)])
+  (if (not (= (state/my-identity) from))
     (invoke-user-handler :discover-response {:from    from
-                                             :payload payload})))
+                                           :payload payload})))
 
-(defn handle-discover-response [web3 from {:keys [location hashtags] :as payload}]
-  ;; send response data to app. how ???
-  (invoke-user-handler :discover-response {:from    from
-                                           :payload payload}))
-
-(defn send-discovery-response [to, hashtags]
-  (let [status (get-status)]
-    (send-discover-message {:type    :discovery-response
-                            :to      to
-                            :payload {:status   status
-                                      :hashtags hashtags
-                                      :location (get-location)}})
-    ))
-
-(defn handle-discovery-search [web3 from payload]
-  (let [hashtags (:hashtags payload)
-        to       (:from payload)]
-    (send-discovery-response to hashtags)))
-
-(defn get-next-latitude [latitude]
-  (let [base-latitude (int latitude)]
-    (if (< base-latitude 90) (inc base-latitude) (- base-latitude 1))))
+(defn handle-discovery-search
+  "Handle discover-search messages."
+  [web3 from payload]
+  (let [_ (log/debug "Received discover-search message: " payload)]
+    (broadcast-status from)))
 
 (defn get-next-latitude [latitude]
   (let [base-latitude (int latitude)]
@@ -133,11 +121,9 @@
                         (clojure.string/join "," [next-latitude next-longitude])]
         payload        {:type     :discover
                         :hashtags hashtags}]
-    make-msg {:from    (state/my-identity)
+    (make-msg {:from    (state/my-identity)
               :topics  topics
-              :payload payload}))
-
-;; missing parens ^
+              :payload payload})))
 
 (comment
 
@@ -150,8 +136,6 @@
   (get-next-longitude 180)
 
   (discover-in-proximity {:latitude 90 :longitude 180} [])
-
-  (discover ["test" "lala"])
 
   (.getCurrentPosition (.-geolocation js/navigator) #(.log js/console %) #(.log js/console %) {:enableHighAccuracy true, :timeout 20000, :maximumAge 1000})
   )

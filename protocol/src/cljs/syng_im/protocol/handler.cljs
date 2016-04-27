@@ -154,5 +154,8 @@
           :group-new-participant (handle-group-msg web3 msg-type from payload)
           :left-group (handle-group-msg web3 msg-type from payload)
           :discovery-search (handle-discovery-search web3 from payload)
-          :discover-response (handle-discover-response web3 from payload)))
+          :discover-response (handle-discover-response web3 from payload)
+          (if msg-type
+            (log/debug "Undefined message type: " (name msg-type))
+            (log/debug "Nil message type"))))
       (log/warn "My identity:" (state/my-identity) "Message To:" to "Message is encrypted for someone else, ignoring"))))

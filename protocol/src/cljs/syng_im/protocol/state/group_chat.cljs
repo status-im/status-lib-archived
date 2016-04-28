@@ -11,6 +11,13 @@
 (defn topic-admin-ident-key [topic]
   (str "group-chat.topic-admin-ident." topic))
 
+(defn topic-group-name-key [topic]
+  (str "group-chat.topic-group-name." topic))
+
+(defn save-group-name [storage topic group-name]
+  (let [key (topic-group-name-key topic)]
+    (s/put storage key group-name)))
+
 (defn save-keypair [storage topic keypair]
   (let [key (topic-keypair-key topic)]
     (s/put storage key keypair)))
@@ -49,6 +56,10 @@
 
 (defn get-keypair [storage topic]
   (let [key (topic-keypair-key topic)]
+    (s/get storage key)))
+
+(defn group-name [storage topic]
+  (let [key (topic-group-name-key topic)]
     (s/get storage key)))
 
 (defn remove-group-data [storage topic]

@@ -75,9 +75,12 @@
 (defn decrypt-group-msg [group-topic encrypted-payload]
   (let [store (storage)]
     (when-let [{private-key :private} (get-keypair store group-topic)]
-      (-> (decrypt private-key encrypted-payload)
-          (read-string)
-          (assoc :group-topic group-topic)))))
+      (try
+        (-> (decrypt private-key encrypted-payload)
+            (read-string)
+            (assoc :group-topic group-topic))
+        (catch :default e
+          (log/warn "Failed to decrypt group message for group" group-topic e))))))
 
 (defn handle-group-user-msg [web3 from {:keys [msg-id group-topic] :as payload}]
   (send-ack web3 from msg-id)

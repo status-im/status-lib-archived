@@ -34,11 +34,12 @@
                        :identities  identities
                        :keypair     keypair}}))
 
-(defn group-add-participant-msg [to group-id identities keypair]
+(defn group-add-participant-msg [to group-id group-name identities keypair]
   (make-msg {:from    (state/my-identity)
              :to      to
              :payload {:type        :init-group-chat
                        :group-topic group-id
+                       :group-name  group-name
                        :identities  identities
                        :keypair     keypair}}))
 

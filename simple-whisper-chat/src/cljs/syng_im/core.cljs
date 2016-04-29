@@ -150,7 +150,7 @@
 (defn start-group-chat []
   (let [identities (get-group-identities)]
     (add-to-chat "group-chat" ":" (str "Starting group chat with " identities))
-    (let [group-id (p/start-group-chat identities)]
+    (let [group-id (p/start-group-chat identities "zgroup!")]
       (set-group-id! group-id))))
 
 (defn add-new-peer-to-group []

@@ -193,8 +193,8 @@
     (save-hashtags [])))
 
 (defn broadcast-discover-status [name status hashtags]
-  (let [_ (log/debug "Broadcasting status: " name status hashtags)
-        topics (get-hashtag-topics hashtags)]
+  (log/debug "Broadcasting status: " name status hashtags)
+  (let [topics (get-hashtag-topics hashtags)]
     (do
       (stop-broadcasting-discover)
       (listen (connection) handle-incoming-whisper-msg {:topics topics})

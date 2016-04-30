@@ -42,8 +42,8 @@
 (defn send-discover-message
   "Send discover message to network."
   [{:keys [payload to] :or {to nil}}]
-  (let [_ (log/debug "Sending discover status: " payload to)
-        {:keys [msg-id msg] :as new-msg} (discover-response-message payload to)]
+  (log/debug "Sending discover status: " payload to)
+  (let [{:keys [msg-id msg] :as new-msg} (discover-response-message payload to)]
     (post-msg (connection) msg)
     new-msg))
 
@@ -65,7 +65,7 @@
    (broadcast-status nil))
   ([to]
    (let [hashtags (get-hashtags)]
-    (if (> (count hashtags) 0)
+    (when (pos? (count hashtags))
       (.getCurrentPosition (.-geolocation js/navigator)
                            #(send-broadcast-status to hashtags %)
                            #(send-broadcast-status to hashtags nil)
@@ -89,22 +89,22 @@
 (defn handle-discover-response
   "Handle discover-response messages."
   [web3 from payload]
-  (let [_ (log/debug "Received discover-response message: " payload)])
-  (if (not (= (state/my-identity) from))
+  (log/debug "Received discover-response message: " payload)
+  (when (not (= (state/my-identity) from))
     (invoke-user-handler :discover-response {:from    from
                                            :payload payload})))
 
 (defn handle-discovery-search
   "Handle discover-search messages."
   [web3 from payload]
-  (let [_ (log/debug "Received discover-search message: " payload)]
-    (broadcast-status from)))
+  (log/debug "Received discover-search message: " payload)
+  (broadcast-status from))
 
 (defn get-next-latitude [latitude]
   (let [base-latitude (int latitude)]
     (if (< base-latitude 90)
       (inc base-latitude)
-      (- base-latitude 1))))
+      (dec base-latitude))))
 
 (defn get-next-longitude [longitude]
   (let [base-longitude (int longitude)]

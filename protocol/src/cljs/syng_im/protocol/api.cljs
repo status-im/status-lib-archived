@@ -195,14 +195,13 @@
 (defn broadcast-discover-status [name status hashtags]
   (log/debug "Broadcasting status: " name status hashtags)
   (let [topics (get-hashtag-topics hashtags)]
-    (do
       (stop-broadcasting-discover)
       (listen (connection) handle-incoming-whisper-msg {:topics topics})
       (save-name name)
       (save-topics topics)
       (save-hashtags hashtags)
       (save-status status)
-      (broadcast-status))))
+      (broadcast-status)))
 
 (defn search-discover [hashtags]
   (let [{:keys [msg-id msg]} (discovery-search-message hashtags)]

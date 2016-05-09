@@ -35,9 +35,9 @@
                :topics     [discovery-response-topic]
                :payload    payload}
          _ (log/debug "Creating discover message using: " data)]
-   (->> (cond-> data
-                to (assoc :to to))
-        (make-msg)))))
+     (->> (cond-> data
+                  to (assoc :to to))
+          (make-msg)))))
 
 (defn send-discover-message
   "Send discover message to network."

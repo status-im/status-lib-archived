@@ -14,8 +14,10 @@
                                                        get-identities
                                                        save-identities
                                                        save-group-admin
+                                                       save-group-name
                                                        group-admin?
-                                                       remove-group-data]]
+                                                       remove-group-data
+                                                       group-name]]
             [syng-im.protocol.state.discovery :refer [save-topics
                                                       save-hashtags
                                                       get-topics
@@ -116,7 +118,7 @@
 
 (defn start-group-chat
   ([identities]
-    (start-group-chat identities nil))
+   (start-group-chat identities nil))
   ([identities group-name]
    (let [group-topic (random/id)
          keypair     (new-keypair)
@@ -128,6 +130,7 @@
      (save-keypair store group-topic keypair)
      (save-identities store group-topic identities)
      (save-group-admin store group-topic my-identity)
+     (save-group-name store group-topic group-name)
      (listen connection handle-incoming-whisper-msg {:topics [group-topic]})
      (doseq [ident identities :when (not (= ident my-identity))]
        (let [{:keys [msg-id msg]} (init-group-chat-msg ident group-topic identities keypair group-name)]
@@ -145,9 +148,10 @@
       (let [connection (connection)
             identities (-> (get-identities store group-id)
                            (conj new-peer-identity))
-            keypair    (get-keypair store group-id)]
+            keypair    (get-keypair store group-id)
+            group-name (group-name store group-id)]
         (save-identities store group-id identities)
-        (let [{:keys [msg-id msg]} (group-add-participant-msg new-peer-identity group-id identities keypair)]
+        (let [{:keys [msg-id msg]} (group-add-participant-msg new-peer-identity group-id group-name identities keypair)]
           (add-pending-message msg-id msg {:internal? true})
           (post-msg connection msg))
         (send-group-msg {:group-id  group-id

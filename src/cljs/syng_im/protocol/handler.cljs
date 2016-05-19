@@ -17,6 +17,8 @@
                                                        group-admin?
                                                        remove-identity
                                                        group-member?]]
+            [syng-im.protocol.discovery :refer [handle-discovery-search
+                                                handle-discover-response]]
             [syng-im.protocol.web3 :refer [to-ascii
                                            make-msg
                                            post-msg
@@ -163,5 +165,10 @@
           :removed-from-group (handle-removed-from-group web3 from payload)
           :group-user-msg (handle-group-msg web3 msg-type from payload)
           :group-new-participant (handle-group-msg web3 msg-type from payload)
-          :left-group (handle-group-msg web3 msg-type from payload)))
+          :left-group (handle-group-msg web3 msg-type from payload)
+          :discovery-search (handle-discovery-search web3 from payload)
+          :discover-response (handle-discover-response web3 from payload)
+          (if msg-type
+            (log/debug "Undefined message type: " (name msg-type))
+            (log/debug "Nil message type"))))
       (log/warn "My identity:" (state/my-identity) "Message To:" to "Message is encrypted for someone else, ignoring"))))

@@ -128,9 +128,7 @@
 (defn stop-listener [group-topic]
   (let [topics (conj [group-topic] syng-app-topic)
         filter (state/get-filter topics)]
-    (.stopWatching filter)
-    (state/remove-filter topics)))
-
-
-
-
+    (when filter
+      (do
+        (.stopWatching filter)
+        (state/remove-filter topics)))))

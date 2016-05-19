@@ -8,7 +8,7 @@
             [status-im.protocol.user-handler :refer [invoke-user-handler]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(def status-app-topic "SYNG-APP-CHAT-TOPIC")
+(def status-app-topic "STATUS-APP-CHAT-TOPIC")
 (def status-msg-ttl 100)
 
 (defn from-ascii [s]

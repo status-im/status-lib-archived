@@ -1,12 +1,12 @@
-(ns syng-im.protocol.delivery
+(ns status-im.protocol.delivery
   (:require [cljs.core.async :refer [<! timeout]]
             [cljs-time.core :as t]
-            [syng-im.utils.logging :as log]
-            [syng-im.protocol.state.delivery :as state]
-            [syng-im.protocol.state.state :as s]
-            [syng-im.protocol.web3 :as whisper]
-            [syng-im.protocol.user-handler :refer [invoke-user-handler]]
-            [syng-im.protocol.defaults :refer [max-retry-send-count
+            [status-im.utils.logging :as log]
+            [status-im.protocol.state.delivery :as state]
+            [status-im.protocol.state.state :as s]
+            [status-im.protocol.web3 :as whisper]
+            [status-im.protocol.user-handler :refer [invoke-user-handler]]
+            [status-im.protocol.defaults :refer [max-retry-send-count
                                                ack-wait-timeout-ms
                                                check-delivery-interval-msg]])
   (:require-macros [cljs.core.async.macros :refer [go]]))

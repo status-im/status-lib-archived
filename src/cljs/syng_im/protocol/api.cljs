@@ -1,14 +1,14 @@
-(ns syng-im.protocol.api
+(ns status-im.protocol.api
   (:require [cljs.core.async :refer [<! timeout]]
-            [syng-im.utils.random :as random]
-            [syng-im.protocol.state.state :as state :refer [set-storage
+            [status-im.utils.random :as random]
+            [status-im.protocol.state.state :as state :refer [set-storage
                                                             set-handler
                                                             set-connection
                                                             set-identity
                                                             connection
                                                             storage]]
-            [syng-im.protocol.state.delivery :refer [add-pending-message]]
-            [syng-im.protocol.state.group-chat :refer [save-keypair
+            [status-im.protocol.state.delivery :refer [add-pending-message]]
+            [status-im.protocol.state.group-chat :refer [save-keypair
                                                        get-keypair
                                                        get-peer-identities
                                                        get-identities
@@ -18,35 +18,35 @@
                                                        group-admin?
                                                        remove-group-data
                                                        group-name]]
-            [syng-im.protocol.state.discovery :refer [save-topics
+            [status-im.protocol.state.discovery :refer [save-topics
                                                       save-hashtags
                                                       get-topics
                                                       save-status
                                                       save-name]]
-            [syng-im.protocol.delivery :refer [start-delivery-loop]]
-            [syng-im.protocol.web3 :refer [listen
+            [status-im.protocol.delivery :refer [start-delivery-loop]]
+            [status-im.protocol.web3 :refer [listen
                                            make-msg
                                            post-msg
                                            make-web3
                                            create-identity
                                            add-identity
                                            stop-listener]]
-            [syng-im.protocol.handler :refer [handle-incoming-whisper-msg]]
-            [syng-im.protocol.user-handler :refer [invoke-user-handler]]
-            [syng-im.utils.encryption :refer [new-keypair]]
-            [syng-im.protocol.group-chat :refer [send-group-msg
+            [status-im.protocol.handler :refer [handle-incoming-whisper-msg]]
+            [status-im.protocol.user-handler :refer [invoke-user-handler]]
+            [status-im.utils.encryption :refer [new-keypair]]
+            [status-im.protocol.group-chat :refer [send-group-msg
                                                  init-group-chat-msg
                                                  group-add-participant-msg
                                                  group-remove-participant-msg
                                                  removed-from-group-msg]]
-            [syng-im.protocol.discovery :refer [init-discovery
+            [status-im.protocol.discovery :refer [init-discovery
                                                 get-hashtag-topics
                                                 discovery-response-topic
                                                 discovery-search-topic
                                                 discovery-search-message
                                                 broadcast-status]]
-            [syng-im.protocol.defaults :refer [default-content-type]]
-            [syng-im.utils.logging :as log])
+            [status-im.protocol.defaults :refer [default-content-type]]
+            [status-im.utils.logging :as log])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
 (defn create-connection [ethereum-rpc-url]

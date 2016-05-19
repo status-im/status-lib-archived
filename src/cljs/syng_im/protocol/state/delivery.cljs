@@ -1,8 +1,8 @@
-(ns syng-im.protocol.state.delivery
+(ns status-im.protocol.state.delivery
   (:require [cljs-time.core :as t]
-            [syng-im.utils.logging :as log]
-            [syng-im.protocol.state.state :refer [state]])
-  (:require-macros [syng-im.utils.lang-macros :refer [condas->]]))
+            [status-im.utils.logging :as log]
+            [status-im.protocol.state.state :refer [state]])
+  (:require-macros [status-im.utils.lang-macros :refer [condas->]]))
 
 (defn inc-retry-count [msg-id]
   (swap! state (fn [state]

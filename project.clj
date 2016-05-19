@@ -1,4 +1,4 @@
-(defproject syng-im/protocol "0.1.1"
+(defproject status-im/protocol "0.1.1"
   :description "FIXME: write this!"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"

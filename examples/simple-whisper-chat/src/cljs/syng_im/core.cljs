@@ -1,7 +1,7 @@
-(ns syng-im.core
+(ns status-im.core
   (:require [clojure.string :as s]
-            [syng-im.protocol.api :as p]
-            [syng-im.utils.logging :as log]
+            [status-im.protocol.api :as p]
+            [status-im.utils.logging :as log]
             [goog.dom :as g]
             [goog.dom.forms :as f]
             [goog.events :as e]
@@ -9,7 +9,7 @@
             [goog.events.KeyCodes]
             [goog.events.KeyHandler]
             [goog.events.KeyHandler.EventType :as key-handler-events]
-            [syng-im.protocol.state.storage :as st]
+            [status-im.protocol.state.storage :as st]
             [goog.storage.Storage :as gstore]
             [goog.storage.mechanism.HTML5LocalStorage :as html5localstore]
             [cljs.reader :refer [read-string]])
@@ -230,7 +230,7 @@
   ;(p/make-whisper-msg web3-2 user2-ident user1-ident "Hello World!")
 
 
-  (require '[syng-im.protocol.web3 :as w])
+  (require '[status-im.protocol.web3 :as w])
   (def web3 (w/make-web3 "http://localhost:4546"))
   (.newIdentity (w/whisp er web3) (fn [error result]
                                     (println error result)))

@@ -1,4 +1,4 @@
-(ns syng-im.utils.logging
+(ns status-im.utils.logging
   (:require [cljs-time.core :as t]
             [cljs-time.format :as tf]))
 

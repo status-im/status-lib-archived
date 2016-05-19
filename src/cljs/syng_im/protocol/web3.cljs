@@ -48,6 +48,7 @@
 (defn create-identity [web3]
   (let [result-channel (chan)]
     (.sendAsync (.-currentProvider web3)
+                ;; todo didn't find any documentation about this method
                 (clj->js [{:jsonrpc "2.0" :method "shh_createIdentity" :params [] :id 99999999999}])
                 (fn [error result]
                   (if error
@@ -66,6 +67,10 @@
 (defn add-identity [web3 private-key]
   (let [result-channel (chan)]
     (.sendAsync (.-currentProvider web3)
+                ;; todo didn't find ssh_addIdentity here
+                ;; https://github.com/ethereum/wiki/wiki/JavaScript-API#web3shh
+                ;; or here
+                ;; https://github.com/ethereum/web3.js/blob/0.15.3/lib/web3/methods/shh.js
                 (clj->js [{:jsonrpc "2.0" :method "shh_addIdentity" :params [private-key] :id 99999999999}])
                 (fn [error result]
                   (if error

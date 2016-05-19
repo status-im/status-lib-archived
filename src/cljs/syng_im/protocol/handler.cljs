@@ -149,7 +149,8 @@
   (log/info "Got whisper message:" msg)
   (let [{from    :from
          to      :to
-         topics  :topics                                    ;; always empty (bug in go-ethereum?)
+         ;; todo :topics always empty (bug in go-ethereum?)
+         topics  :topics
          payload :payload} (js->clj msg :keywordize-keys true)]
     (if (or (= to "0x0")
             (= to (state/my-identity)))

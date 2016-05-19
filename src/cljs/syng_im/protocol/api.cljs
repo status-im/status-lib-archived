@@ -38,13 +38,15 @@
             [syng-im.utils.logging :as log])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(defn create-connection [ethereum-rpc-url]
+(defn- create-connection [ethereum-rpc-url]
   (make-web3 ethereum-rpc-url))
 
 (defn my-identity []
   (state/my-identity))
 
 (defn init-protocol
+  ;; todo how are ethereum-rpc-url, handler and storage required?
+  ;; (init-protocol {}) doesn't throw any exception
   "Required [handler ethereum-rpc-url storage]
    Optional [identity - if not passed a new identity is created automatically
              active-group-ids - list of active group ids]
@@ -73,12 +75,12 @@
   (set-handler handler)
   (go
     (let [connection (create-connection ethereum-rpc-url)
-          {:keys [public private] :as identity} (if identity
-                                                  (do
-                                                    (<! (->> (:private identity)
-                                                             (add-identity connection)))
-                                                    identity)
-                                                  (<! (create-identity connection)))]
+          {:keys [public] :as identity} (if identity
+                                          (do
+                                            (<! (->> (:private identity)
+                                                     (add-identity connection)))
+                                            identity)
+                                          (<! (create-identity connection)))]
       (set-connection connection)
       (set-identity public)
       (listen connection handle-incoming-whisper-msg)
@@ -177,5 +179,6 @@
     (remove-group-data store group-id)
     (stop-listener group-id)))
 
+;; todo this function is never used
 (defn current-connection []
   (connection))

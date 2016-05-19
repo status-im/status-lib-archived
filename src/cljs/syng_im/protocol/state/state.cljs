@@ -5,6 +5,10 @@
                   :filters          {}
                   :delivery-queue   #queue []
                   :external-handler nil
+                  ;; todo this is not too smart. This works like singleton and
+                  ;; doesn't allow to test library in one process, furthermore
+                  ;; when user will have more then one identity he will
+                  ;; explicitly choose which identity to use in api calls.
                   :identity         nil
                   :connection       nil
                   :storage          nil}))

@@ -1,4 +1,4 @@
-(ns syng-im.protocol.defaults
+(ns status-im.protocol.defaults
   (:require [cljs-time.core :as t]))
 
 (def default-content-type "text/plain")

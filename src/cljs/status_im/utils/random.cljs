@@ -1,4 +1,4 @@
-(ns syng-im.utils.random
+(ns status-im.utils.random
   (:require [cljsjs.chance]
             [cljs-time.core :as t]
             [cljs-time.format :as tf]))

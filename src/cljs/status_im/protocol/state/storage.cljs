@@ -1,4 +1,4 @@
-(ns syng-im.protocol.state.storage
+(ns status-im.protocol.state.storage
   (:refer-clojure :exclude [get]))
 
 (defprotocol Storage

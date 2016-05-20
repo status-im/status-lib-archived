@@ -1,15 +1,15 @@
-(ns syng-im.protocol.web3
+(ns status-im.protocol.web3
   (:require [cljs.core.async :refer [chan put! close! <!]]
             [cljsjs.web3]
-            [syng-im.utils.logging :as log]
-            [syng-im.utils.random :as random]
-            [syng-im.utils.encryption :refer [encrypt]]
-            [syng-im.protocol.state.state :as state]
-            [syng-im.protocol.user-handler :refer [invoke-user-handler]])
+            [status-im.utils.logging :as log]
+            [status-im.utils.random :as random]
+            [status-im.utils.encryption :refer [encrypt]]
+            [status-im.protocol.state.state :as state]
+            [status-im.protocol.user-handler :refer [invoke-user-handler]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(def syng-app-topic "SYNG-APP-CHAT-TOPIC")
-(def syng-msg-ttl 100)
+(def status-app-topic "STATUS-APP-CHAT-TOPIC")
+(def status-msg-ttl 100)
 
 (defn from-ascii [s]
   (.fromAscii js/Web3.prototype s))
@@ -96,12 +96,12 @@
 (defn make-msg
   "Returns [msg-id msg], `msg` is formed for Web3.shh.post()"
   [{:keys [from to ttl topics payload encrypt? public-key clear-info]
-    :or   {ttl    syng-msg-ttl
+    :or   {ttl    status-msg-ttl
            topics []}}]
   (let [msg-id (random/id)]
     {:msg-id msg-id
      :msg    (cond-> {:ttl     ttl
-                      :topics  (->> (conj topics syng-app-topic)
+                      :topics  (->> (conj topics status-app-topic)
                                     (mapv from-ascii))
                       :payload (cond->> (merge payload {:msg-id msg-id})
                                         true (str)
@@ -117,7 +117,7 @@
   ([web3 msg-handler]
    (listen web3 msg-handler {}))
   ([web3 msg-handler {:keys [topics] :as opts :or {topics []}}]
-   (let [topics (conj topics syng-app-topic)
+   (let [topics (conj topics status-app-topic)
          shh    (whisper web3)
          filter (.filter shh (make-topics topics) (fn [error msg]
                                                     (if error
@@ -126,7 +126,7 @@
      (state/add-filter topics filter))))
 
 (defn stop-listener [group-topic]
-  (let [topics (conj [group-topic] syng-app-topic)
+  (let [topics (conj [group-topic] status-app-topic)
         filter (state/get-filter topics)]
     (when filter
       (do

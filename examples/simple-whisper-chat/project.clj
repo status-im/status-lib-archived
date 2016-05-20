@@ -1,4 +1,4 @@
-(defproject syng-im/simple-whisper-chat "0.1.0-SNAPSHOT"
+(defproject status-im/simple-whisper-chat "0.1.0-SNAPSHOT"
   :description "FIXME: write this!"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
@@ -17,7 +17,7 @@
                  [com.andrewmcveigh/cljs-time "0.4.0"]
                  [cljsjs/eccjs "0.3.1-0"]
                  ;; uncomment for prod build
-                 ;[syng-im/protocol "0.1.1"]
+                 ;[status-im/protocol "0.1.1"]
                  ]
 
   :plugins [[lein-figwheel "0.5.0-6"]
@@ -33,11 +33,11 @@
                 :source-paths ["src/cljs" "protocol/src/cljs"]
 
                 ;; If no code is to be run, set :figwheel true for continued automagical reloading
-                :figwheel     {:on-jsload "syng-im.core/on-js-reload"}
+                :figwheel     {:on-jsload "status-im.core/on-js-reload"}
 
-                :compiler     {:main                 syng-im.core
+                :compiler     {:main                 status-im.core
                                :asset-path           "js/compiled/out"
-                               :output-to            "resources/public/js/compiled/syng_im.js"
+                               :output-to            "resources/public/js/compiled/status_im.js"
                                :output-dir           "resources/public/js/compiled/out"
                                :source-map-timestamp true}}
                ;; This next build is an compressed minified build for
@@ -48,7 +48,7 @@
                 :source-paths ["src/cljs"]
 
                 :compiler     {:output-to     "resources/public/js/compiled/app.js"
-                               :main          syng-im.core
+                               :main          status-im.core
                                :optimizations :advanced
                                :pretty-print  false}}]}
 

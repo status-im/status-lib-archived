@@ -1,4 +1,4 @@
-(ns syng-im.utils.encryption
+(ns status-im.utils.encryption
   (:require [cljsjs.chance]
             [cljsjs.eccjs]))
 

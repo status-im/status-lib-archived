@@ -1,6 +1,6 @@
-(ns syng-im.protocol.state.group-chat
-  (:require [syng-im.protocol.state.storage :as s]
-            [syng-im.protocol.state.state :as state]))
+(ns status-im.protocol.state.group-chat
+  (:require [status-im.protocol.state.storage :as s]
+            [status-im.protocol.state.state :as state]))
 
 (defn topic-keypair-key [topic]
   (str "group-chat.topic-keypair." topic))

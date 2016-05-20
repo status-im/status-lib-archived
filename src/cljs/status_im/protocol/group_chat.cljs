@@ -1,10 +1,10 @@
-(ns syng-im.protocol.group-chat
-  (:require [syng-im.protocol.state.state :as state :refer [connection
+(ns status-im.protocol.group-chat
+  (:require [status-im.protocol.state.state :as state :refer [connection
                                                             storage]]
-            [syng-im.protocol.state.delivery :refer [add-pending-message]]
-            [syng-im.protocol.state.group-chat :refer [get-keypair
+            [status-im.protocol.state.delivery :refer [add-pending-message]]
+            [status-im.protocol.state.group-chat :refer [get-keypair
                                                        get-peer-identities]]
-            [syng-im.protocol.web3 :refer [make-msg
+            [status-im.protocol.web3 :refer [make-msg
                                            post-msg]]))
 
 (defn group-msg [group-id public-key payload type]

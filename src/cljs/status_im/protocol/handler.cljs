@@ -1,12 +1,12 @@
-(ns syng-im.protocol.handler
+(ns status-im.protocol.handler
   (:require [cljs.reader :refer [read-string]]
-            [syng-im.utils.logging :as log]
-            [syng-im.utils.encryption :refer [decrypt]]
-            [syng-im.protocol.state.state :as state :refer [storage]]
-            [syng-im.protocol.state.delivery :refer [internal?
+            [status-im.utils.logging :as log]
+            [status-im.utils.encryption :refer [decrypt]]
+            [status-im.protocol.state.state :as state :refer [storage]]
+            [status-im.protocol.state.delivery :refer [internal?
                                                      pending?
                                                      update-pending-message]]
-            [syng-im.protocol.state.group-chat :refer [save-keypair
+            [status-im.protocol.state.group-chat :refer [save-keypair
                                                        save-identities
                                                        get-identities
                                                        chat-exists?
@@ -17,15 +17,15 @@
                                                        group-admin?
                                                        remove-identity
                                                        group-member?]]
-            [syng-im.protocol.discovery :refer [handle-discovery-search
+            [status-im.protocol.discovery :refer [handle-discovery-search
                                                 handle-discover-response]]
-            [syng-im.protocol.web3 :refer [to-ascii
+            [status-im.protocol.web3 :refer [to-ascii
                                            make-msg
                                            post-msg
                                            listen
                                            stop-listener]]
-            [syng-im.protocol.user-handler :refer [invoke-user-handler]]
-            [syng-im.protocol.defaults :refer [default-content-type]]))
+            [status-im.protocol.user-handler :refer [invoke-user-handler]]
+            [status-im.protocol.defaults :refer [default-content-type]]))
 
 (defn handle-ack [from {:keys [ack-msg-id msg-id] :as payload}]
   (log/info "Got ack for message:" ack-msg-id "from:" from)

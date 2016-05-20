@@ -1,4 +1,4 @@
-(ns syng-im.utils.lang-macros)
+(ns status-im.utils.lang-macros)
 
 (defmacro condas->
   "A mixture of cond-> and as-> allowing more flexibility in the test and step forms"

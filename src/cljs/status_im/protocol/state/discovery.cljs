@@ -1,7 +1,7 @@
-(ns syng-im.protocol.state.discovery
-  (:require [syng-im.protocol.state.storage :as s]
-            [syng-im.protocol.state.state :as state]
-            [syng-im.protocol.state.state :as state :refer [set-storage
+(ns status-im.protocol.state.discovery
+  (:require [status-im.protocol.state.storage :as s]
+            [status-im.protocol.state.state :as state]
+            [status-im.protocol.state.state :as state :refer [set-storage
                                                             set-handler
                                                             set-connection
                                                             set-identity

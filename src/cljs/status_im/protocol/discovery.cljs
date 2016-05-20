@@ -1,14 +1,14 @@
-(ns syng-im.protocol.discovery
-  (:require [syng-im.protocol.state.state :as state :refer [connection
+(ns status-im.protocol.discovery
+  (:require [status-im.protocol.state.state :as state :refer [connection
                                                             storage]]
-            [syng-im.protocol.state.delivery :refer [add-pending-message]]
-            [syng-im.protocol.state.discovery :refer [save-status
+            [status-im.protocol.state.delivery :refer [add-pending-message]]
+            [status-im.protocol.state.discovery :refer [save-status
                                                       get-name
                                                       get-status
                                                       get-hashtags]]
-            [syng-im.protocol.user-handler :refer [invoke-user-handler]]
-            [syng-im.utils.logging :as  log]
-            [syng-im.protocol.web3 :refer [make-msg
+            [status-im.protocol.user-handler :refer [invoke-user-handler]]
+            [status-im.utils.logging :as  log]
+            [status-im.protocol.web3 :refer [make-msg
                                            post-msg]]))
 
 (def discovery-response-topic "status-discovery-responses")

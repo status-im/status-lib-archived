@@ -1,4 +1,4 @@
-(ns syng-im.protocol.state.state
+(ns status-im.protocol.state.state
   (:require [cljs-time.core :as t]))
 
 (def state (atom {:pending-messages {}

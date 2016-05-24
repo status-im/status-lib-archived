@@ -4,26 +4,26 @@
             [status-im.utils.encryption :refer [decrypt]]
             [status-im.protocol.state.state :as state :refer [storage]]
             [status-im.protocol.state.delivery :refer [internal?
-                                                     pending?
-                                                     update-pending-message]]
+                                                       pending?
+                                                       update-pending-message]]
             [status-im.protocol.state.group-chat :refer [save-keypair
-                                                       save-identities
-                                                       get-identities
-                                                       chat-exists?
-                                                       get-keypair
-                                                       add-identity
-                                                       remove-group-data
-                                                       save-group-admin
-                                                       group-admin?
-                                                       remove-identity
-                                                       group-member?]]
+                                                         save-identities
+                                                         get-identities
+                                                         chat-exists?
+                                                         get-keypair
+                                                         add-identity
+                                                         remove-group-data
+                                                         save-group-admin
+                                                         group-admin?
+                                                         remove-identity
+                                                         group-member?]]
             [status-im.protocol.discovery :refer [handle-discovery-search
-                                                handle-discover-response]]
-            [status-im.protocol.web3 :refer [to-ascii
-                                           make-msg
-                                           post-msg
-                                           listen
-                                           stop-listener]]
+                                                  handle-discover-response]]
+            [status-im.protocol.web3 :refer [to-utf8
+                                             make-msg
+                                             post-msg
+                                             listen
+                                             stop-listener]]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
             [status-im.protocol.defaults :refer [default-content-type]]))
 
@@ -155,9 +155,11 @@
          payload :payload} (js->clj msg :keywordize-keys true)]
     (if (or (= to "0x0")
             (= to (state/my-identity)))
-      (let [{msg-type :type :as payload} (->> (to-ascii payload)
-                                              (read-string))]
-        (case msg-type
+      (let [{msg-type :type :as payload} (js->clj
+                                           (->> (to-utf8 payload)
+                                                (.parse js/JSON))
+                                           :keywordize-keys true)]
+        (case (keyword msg-type)
           :ack (handle-ack from payload)
           :user-msg (handle-user-msg web3 from to payload)
           :init-group-chat (handle-new-group-chat web3 from payload)

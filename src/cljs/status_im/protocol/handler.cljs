@@ -155,10 +155,8 @@
          payload :payload} (js->clj msg :keywordize-keys true)]
     (if (or (= to "0x0")
             (= to (state/my-identity)))
-      (let [{msg-type :type :as payload} (js->clj
-                                           (->> (to-utf8 payload)
-                                                (.parse js/JSON))
-                                           :keywordize-keys true)]
+      (let [{msg-type :type :as payload} (->> (to-utf8 payload)
+                                              (read-string))]
         (case (keyword msg-type)
           :ack (handle-ack from payload)
           :user-msg (handle-user-msg web3 from to payload)

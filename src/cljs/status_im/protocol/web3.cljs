@@ -11,8 +11,8 @@
 (def status-app-topic "STATUS-APP-CHAT-TOPIC")
 (def status-msg-ttl 100)
 
-(defn to-hex [s]
-  (.toHex js/Web3.prototype s))
+(defn from-utf8 [s]
+  (.fromUtf8 js/Web3.prototype s))
 
 (defn to-utf8 [s]
   (.toUtf8 js/Web3.prototype s))
@@ -21,7 +21,7 @@
   (.-shh web3))
 
 (defn make-topics [topics]
-  (->> {:topics (mapv to-hex topics)}
+  (->> {:topics (mapv from-utf8 topics)}
        (clj->js)))
 
 (defn make-web3 [rpc-url]
@@ -102,11 +102,11 @@
     {:msg-id msg-id
      :msg    (cond-> {:ttl     ttl
                       :topics  (->> (conj topics status-app-topic)
-                                    (mapv to-hex))
+                                    (mapv from-utf8))
                       :payload (cond->> (merge payload {:msg-id msg-id})
-                                        true (clj->js)
+                                        true (str)
                                         encrypt? (encrypt-payload public-key clear-info)
-                                        true (to-hex))}
+                                        true (from-utf8))}
                      from (assoc :from from)
                      to (assoc :to to))}))
 

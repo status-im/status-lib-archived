@@ -79,21 +79,21 @@
 
    :new-msg, new-group-msg, msg-acked should be handled idempotently (may be called multiple times for the same msg-id)
    "
-  ([db] (init-protocol "no-identity" db))
+  ([parameters] (init-protocol "no-identity" parameters))
   ([public-key {:keys [handler ethereum-rpc-url storage identity active-group-ids]}]
-  (set-storage storage)
-  (set-handler handler)
-  (go
-    (let [connection (create-connection ethereum-rpc-url)]
-      (set-connection connection)
-      (set-identity public-key)
-      (listen connection handle-incoming-whisper-msg)
-      (start-delivery-loop)
-      (doseq [group-id active-group-ids]
-        (listen connection handle-incoming-whisper-msg {:topics [group-id]}))
-      (init-discovery)
-      (listen connection handle-incoming-whisper-msg {:topics [discovery-response-topic]})
-      (invoke-user-handler :initialized {:identity {:public public-key}})))))
+   (set-storage storage)
+   (set-handler handler)
+   (go
+     (let [connection (create-connection ethereum-rpc-url)]
+       (set-connection connection)
+       (set-identity public-key)
+       (listen connection handle-incoming-whisper-msg)
+       (start-delivery-loop)
+       (doseq [group-id active-group-ids]
+         (listen connection handle-incoming-whisper-msg {:topics [group-id]}))
+       (init-discovery)
+       (listen connection handle-incoming-whisper-msg {:topics [discovery-response-topic]})
+       (invoke-user-handler :initialized {:identity {:public public-key}})))))
 
 (defn send-user-msg [{:keys [to content]}]
   (let [{:keys [msg-id msg] :as new-msg} (make-msg {:from    (state/my-identity)

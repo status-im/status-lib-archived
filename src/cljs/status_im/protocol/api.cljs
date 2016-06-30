@@ -79,8 +79,9 @@
 
    :new-msg, new-group-msg, msg-acked should be handled idempotently (may be called multiple times for the same msg-id)
    "
-  ([parameters] (init-protocol "no-identity" parameters))
-  ([public-key {:keys [handler ethereum-rpc-url storage identity active-group-ids]}]
+  ([parameters] (init-protocol {:public-key "no-identity"
+                                :address    "no-address"} parameters))
+  ([{:keys [public-key] :as account} {:keys [handler ethereum-rpc-url storage identity active-group-ids]}]
    (set-storage storage)
    (set-handler handler)
    (go
@@ -93,7 +94,7 @@
          (listen connection handle-incoming-whisper-msg {:topics [group-id]}))
        (init-discovery)
        (listen connection handle-incoming-whisper-msg {:topics [discovery-response-topic]})
-       (invoke-user-handler :initialized {:identity {:public public-key}})))))
+       (invoke-user-handler :initialized {:identity account})))))
 
 (defn send-user-msg [{:keys [to content]}]
   (let [{:keys [msg-id msg] :as new-msg} (make-msg {:from    (state/my-identity)

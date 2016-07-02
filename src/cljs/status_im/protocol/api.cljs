@@ -33,7 +33,8 @@
                                              create-identity
                                              add-identity
                                              stop-listener
-                                             stop-watching-filters]]
+                                             stop-watching-filters]
+             :as web3]
             [status-im.protocol.handler :refer [handle-incoming-whisper-msg] :as handler]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
             [status-im.utils.encryption :refer [new-keypair]]
@@ -116,13 +117,14 @@
   (let [topic [(user-topic whisper-identity) discovery-topic]]
     (listen (connection) handle-incoming-whisper-msg {:topic topic})))
 
-(defn send-user-msg [{:keys [to content msg-id]}]
+(defn send-user-msg [{:keys [to content msg-id content-type]}]
   (let [{:keys [msg-id msg] :as new-msg}
         (make-msg {:from    (state/my-identity)
                    :to      to
                    :msg-id  msg-id
                    :payload {:content      content
-                             :content-type default-content-type
+                             :content-type (or content-type
+                                               default-content-type)
                              :type         :user-msg}})]
     (add-pending-message msg-id msg)
     (post-msg (connection) msg)

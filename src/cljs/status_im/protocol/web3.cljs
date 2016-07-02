@@ -1,21 +1,22 @@
 (ns status-im.protocol.web3
   (:require [cljs.core.async :refer [chan put! close! <!]]
-            [cljsjs.web3]
             [status-im.utils.logging :as log]
             [status-im.utils.random :as random]
             [status-im.utils.encryption :refer [encrypt]]
             [status-im.protocol.state.state :as state]
-            [status-im.protocol.user-handler :refer [invoke-user-handler]])
+            [status-im.protocol.user-handler :refer [invoke-user-handler]]
+            cljsjs.web3)
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
+(def web3 js/Web3)
 (def status-app-topic "status-app")
 (def status-msg-ttl 100)
 
 (defn from-utf8 [s]
-  (.fromUtf8 js/Web3.prototype s))
+  (.fromUtf8 web3.prototype s))
 
 (defn to-utf8 [s]
-  (.toUtf8 js/Web3.prototype s))
+  (.toUtf8 web3.prototype s))
 
 (defn whisper [web3]
   (.-shh web3))
@@ -25,8 +26,8 @@
        (clj->js)))
 
 (defn make-web3 [rpc-url]
-  (->> (js/Web3.providers.HttpProvider. rpc-url)
-       (js/Web3.)))
+  (->> (web3.providers.HttpProvider. rpc-url)
+       (web3.)))
 
 (defn make-callback [{:keys [error-msg result-channel]}]
   (fn [error result]
@@ -40,8 +41,8 @@
 
 (defn new-identity [web3]
   (let [result-channel (chan)
-        callback       (make-callback {:error-msg      "Call to newIdentity failed"
-                                       :result-channel result-channel})]
+        callback (make-callback {:error-msg      "Call to newIdentity failed"
+                                 :result-channel result-channel})]
     (.newIdentity (.-shh web3) callback)
     result-channel))
 

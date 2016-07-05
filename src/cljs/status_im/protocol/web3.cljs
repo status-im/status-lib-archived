@@ -95,15 +95,15 @@
 
 (defn make-msg
   "Returns [msg-id msg], `msg` is formed for Web3.shh.post()"
-  [{:keys [from to ttl topics payload encrypt? public-key clear-info]
+  [{:keys [from to ttl topics payload encrypt? public-key clear-info msg-id]
     :or   {ttl    status-msg-ttl
            topics []}}]
-  (let [msg-id (random/id)]
-    {:msg-id msg-id
+  (let [msg-id' (or msg-id (random/id))]
+    {:msg-id msg-id'
      :msg    (cond-> {:ttl     ttl
                       :topics  (->> (conj topics status-app-topic)
                                     (mapv from-utf8))
-                      :payload (cond->> (merge payload {:msg-id msg-id})
+                      :payload (cond->> (merge payload {:msg-id msg-id'})
                                         true (str)
                                         encrypt? (encrypt-payload public-key clear-info)
                                         true (from-utf8))}

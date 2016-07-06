@@ -31,7 +31,8 @@
                                              create-identity
                                              add-identity
                                              stop-listener]]
-            [status-im.protocol.handler :refer [handle-incoming-whisper-msg]]
+            [status-im.protocol.handler :refer [handle-incoming-whisper-msg]
+             :as handler]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
             [status-im.utils.encryption :refer [new-keypair]]
             [status-im.protocol.group-chat :refer [send-group-msg
@@ -212,3 +213,6 @@
 
 (defn current-connection []
   (connection))
+
+(defn send-seen [to message-id]
+  (handler/send-seen (connection) to message-id))

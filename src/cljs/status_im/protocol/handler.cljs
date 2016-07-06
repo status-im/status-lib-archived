@@ -41,6 +41,10 @@
                                                      :ack-msg-id ack-msg-id
                                                      :group-id   group-topic}))))
 
+(defn handle-seen [from {:keys [msg-id]}]
+  (log/info "Got seen for message:" msg-id "from:" from)
+  (invoke-user-handler :msg-seen {:msg-id msg-id
+                                  :from   from}))
 (defn send-ack
   ([web3 to msg-id]
    (send-ack web3 to msg-id nil))
@@ -52,6 +56,16 @@
                                                    :ack-msg-id msg-id}
                                                   ack-info)})]
      (post-msg web3 msg))))
+
+(defn send-seen
+  [web3 to msg-id]
+  (log/info "Send seen message:" msg-id "To:" to)
+  (let [{:keys [msg]} (make-msg {:from        (state/my-identity)
+                                 :to          to
+                                 :keep-msg-id false
+                                 :payload     {:type   :seen
+                                               :msg-id msg-id}})]
+    (post-msg web3 msg)))
 
 (defn handle-user-msg [web3 from to {:keys [msg-id] :as payload}]
   (send-ack web3 from msg-id)
@@ -159,6 +173,7 @@
                                               (read-string))]
         (case (keyword msg-type)
           :ack (handle-ack from payload)
+          :seen (handle-seen from payload)
           :user-msg (handle-user-msg web3 from to payload)
           :init-group-chat (handle-new-group-chat web3 from payload)
           :group-removed-participant (handle-group-removed-participant web3 from payload)

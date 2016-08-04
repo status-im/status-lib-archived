@@ -8,7 +8,7 @@
             [status-im.protocol.user-handler :refer [invoke-user-handler]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(def status-app-topic "STATUS-APP-CHAT-TOPIC")
+(def status-app-topic "status-app")
 (def status-msg-ttl 100)
 
 (defn from-utf8 [s]
@@ -112,28 +112,26 @@
                      from (assoc :from from)
                      to (assoc :to to))}))
 
-
-
 (defn listen
   "Returns a filter which can be stopped with (stop-whisper-listener)"
   ([web3 msg-handler]
    (listen web3 msg-handler {}))
-  ([web3 msg-handler {:keys [topics] :as opts :or {topics []}}]
-   (let [topics (conj topics status-app-topic)
+  ([web3 msg-handler {:keys [topic] :or {topic []}}]
+   (let [topic  (conj topic status-app-topic)
          shh    (whisper web3)
-         filter (.filter shh (make-topics topics) (fn [error msg]
-                                                    (if error
-                                                      (invoke-user-handler :error {:error-msg error})
-                                                      (msg-handler web3 msg))))]
-     (state/add-filter topics filter))))
+         filter (.filter shh (make-topics topic) (fn [error msg]
+                                                   (if error
+                                                     (invoke-user-handler :error {:error-msg error})
+                                                     (msg-handler web3 msg))))]
+     (log/debug "Listening to: " topic)
+     (state/add-filter topic filter))))
 
-(defn stop-listener [group-topic]
-  (let [topics (conj [group-topic] status-app-topic)
-        filter (state/get-filter topics)]
+(defn stop-listener [topic]
+  (let [topic (conj topic status-app-topic)
+        filter (state/get-filter topic)]
     (when filter
-      (do
-        (.stopWatching filter)
-        (state/remove-filter topics)))))
+      (.stopWatching filter)
+      (state/remove-filter topic))))
 
 (defn stop-watching-filters []
   (doseq [filter (state/get-all-filters)]

@@ -125,8 +125,8 @@
                              (add-to-chat "chat" ":" (str "Don't know how to handle " event-type))))})
     (e/listen (-> (g/getElement "msg")
                   (goog.events.KeyHandler.))
-      key-handler-events/KEY
-      (fn [e]
+              key-handler-events/KEY
+              (fn [e]
         (when (= (.-keyCode e) KeyCodes/ENTER)
           (let [msg         (-> (g/getElement "msg")
                                 (f/getValue))
@@ -137,8 +137,8 @@
             (add-to-chat "chat" (p/my-identity) msg)))))
     (e/listen (-> (g/getElement "group-msg")
                   (goog.events.KeyHandler.))
-      key-handler-events/KEY
-      (fn [e]
+              key-handler-events/KEY
+              (fn [e]
         (when (= (.-keyCode e) KeyCodes/ENTER)
           (let [msg      (-> (g/getElement "group-msg")
                              (f/getValue))

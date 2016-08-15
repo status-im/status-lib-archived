@@ -18,6 +18,12 @@
 (defn remove-filter [topics]
   (swap! state update-in [:filters] dissoc topics))
 
+(defn remove-all-filters []
+  (swap! state :filters {}))
+
+(defn get-all-filters []
+  (vals (@state :filters)))
+
 (defn set-storage [storage]
   (swap! state assoc :storage storage))
 

@@ -30,7 +30,8 @@
                                              make-web3
                                              create-identity
                                              add-identity
-                                             stop-listener]]
+                                             stop-listener
+                                             stop-watching-filtres]]
             [status-im.protocol.handler :refer [handle-incoming-whisper-msg]
              :as handler]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
@@ -83,6 +84,8 @@
   ([parameters] (init-protocol {:public-key "no-identity"
                                 :address    "no-address"} parameters))
   ([{:keys [public-key] :as account} {:keys [handler ethereum-rpc-url storage identity active-group-ids]}]
+   (when (seq (state/get-all-filters))
+     (stop-watching-filtres))
    (set-storage storage)
    (set-handler handler)
    (go

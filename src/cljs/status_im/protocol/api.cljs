@@ -31,7 +31,7 @@
                                              create-identity
                                              add-identity
                                              stop-listener
-                                             stop-watching-filtres]]
+                                             stop-watching-filters]]
             [status-im.protocol.handler :refer [handle-incoming-whisper-msg]
              :as handler]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
@@ -85,7 +85,7 @@
                                 :address    "no-address"} parameters))
   ([{:keys [public-key] :as account} {:keys [handler ethereum-rpc-url storage identity active-group-ids]}]
    (when (seq (state/get-all-filters))
-     (stop-watching-filtres))
+     (stop-watching-filters))
    (set-storage storage)
    (set-handler handler)
    (go

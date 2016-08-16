@@ -135,7 +135,7 @@
         (.stopWatching filter)
         (state/remove-filter topics)))))
 
-(defn stop-watching-filtres []
+(defn stop-watching-filters []
   (doseq [filter (state/get-all-filters)]
     (.stopWatching filter))
   (state/remove-all-filters))

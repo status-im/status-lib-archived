@@ -1,17 +1,16 @@
 (ns status-im.protocol.state.discovery
   (:require [status-im.protocol.state.storage :as s]
-            [status-im.protocol.state.state :as state]
             [status-im.protocol.state.state :as state :refer [set-storage
-                                                            set-handler
-                                                            set-connection
-                                                            set-identity
-                                                            connection
-                                                            storage]]))
+                                                              set-handler
+                                                              set-connection
+                                                              connection
+                                                              storage]]))
 
 (def discovery-status "discovery-status")
 (def discovery-topics "discovery-topics")
 (def discovery-hashtags "discovery-hashtags")
 (def discovery-name "discovery-name")
+(def discovery-photo-path "discovery-photo-path")
 
 (defn save-status [status]
   (let [store (storage)]
@@ -44,4 +43,12 @@
 (defn get-name []
   (let [store (storage)]
     (s/get store discovery-name)))
+
+(defn save-photo-path [photo-path]
+  (let [store (storage)]
+    (s/put store discovery-photo-path photo-path)))
+
+(defn get-photo-path []
+  (let [store (storage)]
+    (s/get store discovery-photo-path)))
 

@@ -30,7 +30,7 @@
   :cljsbuild {:builds
               [{:id           "dev"
 
-                :source-paths ["src/cljs" "protocol/src/cljs"]
+                :source-paths ["src/cljs" "../../src/cljs"]
 
                 ;; If no code is to be run, set :figwheel true for continued automagical reloading
                 :figwheel     {:on-jsload "status-im.core/on-js-reload"}

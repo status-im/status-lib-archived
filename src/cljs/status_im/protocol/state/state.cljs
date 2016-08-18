@@ -5,7 +5,7 @@
                   :filters          {}
                   :delivery-queue   #queue []
                   :external-handler nil
-                  :identity         nil
+                  :account          nil
                   :connection       nil
                   :storage          nil}))
 
@@ -30,8 +30,8 @@
 (defn set-handler [handler]
   (swap! state assoc :external-handler handler))
 
-(defn set-identity [identity]
-  (swap! state assoc :identity identity))
+(defn set-account [identity]
+  (swap! state assoc :account identity))
 
 (defn set-connection [connection]
   (swap! state assoc :connection connection))
@@ -39,8 +39,11 @@
 (defn connection []
   (:connection @state))
 
+(defn my-account []
+  (:account @state))
+
 (defn my-identity []
-  (:identity @state))
+  (get-in @state [:account :public-key]))
 
 (defn external-handler []
   (:external-handler @state))

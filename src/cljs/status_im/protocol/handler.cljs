@@ -79,7 +79,7 @@
   (send-ack web3 from msg-id {:group-invite group-topic})
   (let [store (storage)]
     (when-not (chat-exists? store group-topic)
-      (listen web3 handle-incoming-whisper-msg {:topics [group-topic]})
+      (listen web3 handle-incoming-whisper-msg {:topic [group-topic]})
       (save-keypair store group-topic keypair)
       (save-identities store group-topic identities)
       (save-group-admin store group-topic from)
@@ -138,7 +138,7 @@
         (send-ack web3 from msg-id)
         (when (group-member? store group-topic (state/my-identity))
           (remove-group-data store group-topic)
-          (stop-listener group-topic)
+          (stop-listener [group-topic])
           (invoke-user-handler :removed-from-group {:group-id group-topic
                                                     :from     from
                                                     :msg-id   msg-id})))
@@ -160,6 +160,15 @@
       :group-new-participant (handle-group-new-participant web3 from payload)
       :left-group (handle-participant-left-group web3 from payload))
     (log/debug "Could not decrypt group msg, possibly you've left the group.")))
+
+(defn handle-contact-update [from payload]
+  (log/debug "Received contact-update message: " payload)
+  (invoke-user-handler :contact-update {:from    from
+                                        :payload payload}))
+
+(defn handle-contact-online [from payload]
+  (invoke-user-handler :contact-online {:from    from
+                                        :payload payload}))
 
 (defn handle-incoming-whisper-msg [web3 msg]
   (log/info "Got whisper message:" msg)
@@ -183,6 +192,8 @@
           :left-group (handle-group-msg web3 msg-type from payload)
           :discovery-search (handle-discovery-search web3 from payload)
           :discover-response (handle-discover-response web3 from payload)
+          :contact-update (handle-contact-update from payload)
+          :contact-online (handle-contact-online from payload)
           (if msg-type
             (log/debug "Undefined message type: " (name msg-type))
             (log/debug "Nil message type"))))

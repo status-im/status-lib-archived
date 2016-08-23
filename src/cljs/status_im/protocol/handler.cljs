@@ -18,7 +18,9 @@
                                                          group-admin?
                                                          remove-identity
                                                          group-member?]]
-            [status-im.protocol.discovery :refer [handle-discover-response]]
+            [status-im.protocol.discovery :refer [handle-discover-response
+                                                  get-discovery-keypair
+                                                  save-discovery-keypair]]
             [status-im.protocol.web3 :refer [to-utf8
                                              make-message
                                              listen
@@ -78,6 +80,19 @@
   (invoke-user-handler :message-received {:from    from
                                           :to      to
                                           :payload payload}))
+
+(defn handle-user-discovery-keypair [from {:keys [keypair] :as payload}]
+  (let [store (storage)]
+    (save-discovery-keypair store from keypair))
+  (invoke-user-handler :user-discovery-keypair {:from    from
+                                                :payload payload}))
+
+(defn handle-contact-request [web3 to from {:keys [message-id keypair] :as payload}]
+  (send-ack web3 to from message-id)
+  (save-discovery-keypair (storage) from keypair)
+  (invoke-user-handler :contact-request {:from    from
+                                         :to      to
+                                         :payload payload}))
 
 (defn handle-group-init-chat [web3 to from {:keys [group-topic keypair identities message-id group-name]}]
   (send-ack web3 to from message-id {:group-invite group-topic})
@@ -165,17 +180,25 @@
       :group-participant-left (handle-group-user-left web3 to from payload))
     (log/debug "Could not decrypt group message, possibly you've left the group.")))
 
-(defn handle-contact-update [from payload]
-  (log/debug "Received contact-update message: " payload)
-  (invoke-user-handler :contact-update {:from    from
-                                        :payload payload}))
+(defn decrypt-discovery-message [from encrypted-payload]
+  (let [store (storage)]
+    (when-let [{private-key :private} (get-discovery-keypair store from)]
+      (try
+        (-> (decrypt private-key encrypted-payload)
+            (read-string))
+        (catch :default e
+          (log/warn "Failed to decrypt discovery message from" from e))))))
+
+(defn handle-contact-update [from {:keys [enc-payload]}]
+  (if-let [payload (decrypt-discovery-message from enc-payload)]
+    (invoke-user-handler :contact-update {:from    from
+                                          :payload payload})))
 
 (defn handle-contact-online [from payload]
   (invoke-user-handler :contact-online {:from    from
                                         :payload payload}))
 
 (defn handle-incoming-whisper-message [web3 message]
-  (log/info "Got whisper message:" message)
   (let [{from    :from
          to      :to
          topics  :topics                                    ;; always empty (bug in go-ethereum?)
@@ -188,6 +211,8 @@
           :ack (handle-ack from payload)
           :seen (handle-seen from payload)
           :user-message (handle-user-message web3 to from payload)
+          :user-discovery-keypair (handle-user-discovery-keypair from payload)
+          :contact-request (handle-contact-request web3 to from payload)
           :group-init-chat (handle-group-init-chat web3 to from payload)
           :group-you-have-been-removed (handle-group-you-have-been-removed web3 to from payload)
           :group-user-message (handle-group-message web3 message-type to from payload)

@@ -4,5 +4,9 @@
 (def default-content-type "text/plain")
 
 (def max-retry-send-count 5)
-(def ack-wait-timeout-ms (t/millis 5000))
-(def check-delivery-interval-msg 100)
+(def check-delivery-interval 2500)
+
+(def status-message-ttl (* 60 60 2))
+(def ack-wait-timeout (t/hours 2))
+(def sending-retry-timeout (t/seconds 10))
+

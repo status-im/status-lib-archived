@@ -7,7 +7,9 @@
                                                               set-account
                                                               connection
                                                               storage]]
-            [status-im.protocol.state.delivery :refer [add-pending-message]]
+            [status-im.protocol.state.delivery :refer [add-pending-message
+                                                       update-pending-message
+                                                       set-pending-messages]]
             [status-im.protocol.state.group-chat :refer [save-keypair
                                                          get-keypair
                                                          get-peer-identities
@@ -27,22 +29,21 @@
                                                         discovery-topic]]
             [status-im.protocol.delivery :refer [start-delivery-loop]]
             [status-im.protocol.web3 :refer [listen
-                                             make-msg
-                                             post-msg
+                                             make-message
+                                             post-message
                                              make-web3
                                              create-identity
                                              add-identity
                                              stop-listener
-                                             stop-watching-filters]
-             :as web3]
-            [status-im.protocol.handler :refer [handle-incoming-whisper-msg] :as handler]
+                                             stop-watching-filters]]
+            [status-im.protocol.handler :refer [handle-incoming-whisper-message] :as handler]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
             [status-im.utils.encryption :refer [new-keypair]]
-            [status-im.protocol.group-chat :refer [send-group-msg
-                                                   init-group-chat-msg
-                                                   group-add-participant-msg
-                                                   group-remove-participant-msg
-                                                   removed-from-group-msg]]
+            [status-im.protocol.group-chat :refer [send-group-message
+                                                   init-group-chat-message
+                                                   group-add-participant-message
+                                                   group-remove-participant-message
+                                                   removed-from-group-message]]
             [status-im.protocol.discovery :refer [hashtags->topics
                                                   user-topic
                                                   discovery-topic
@@ -68,6 +69,8 @@
   (let [topics [[(user-topic (my-identity)) discovery-topic]]]
     (broadcast-online topics)))
 
+(declare send-pending-message)
+
 (defn init-protocol
   "Required [handler ethereum-rpc-url storage]
    Optional [identity - if not passed a new identity is created automatically
@@ -80,17 +83,17 @@
    :new-msg - [from to payload]
    :new-group-msg [from group-id payload]
    :error - [error-msg details]
-   :msg-acked [msg-id from]
-   :delivery-failed [msg-id]
+   :msg-acked [id from]
+   :delivery-failed [id]
    :new-group-chat [from group-id]
-   :group-chat-invite-acked [ack-msg-id from group-id]
-   :group-new-participant [identity group-id from msg-id]
-   :group-removed-participant [from identity group-id msg-id]
-   :removed-from-group [from group-id msg-id]
-   :participant-left-group [from group-id msg-id]
+   :group-chat-invite-acked [ack-id from group-id]
+   :group-new-participant [identity group-id from id]
+   :group-removed-participant [from identity group-id id]
+   :removed-from-group [from group-id id]
+   :participant-left-group [from group-id id]
    :initialized [identity]
 
-   :new-msg, new-group-msg, msg-acked should be handled idempotently (may be called multiple times for the same msg-id)
+   :new-msg, new-group-msg, msg-acked should be handled idempotently (may be called multiple times for the same id)
    "
   ([parameters] (init-protocol {:public-key "no-identity"
                                 :address    "no-address"} parameters))
@@ -104,37 +107,61 @@
            topics     (get-topics)]
        (set-connection connection)
        (set-account account)
-       (listen connection handle-incoming-whisper-msg)
-       (start-delivery-loop)
+       (listen connection handle-incoming-whisper-message)
+       (start-delivery-loop send-pending-message)
        (doseq [group-id active-group-ids]
-         (listen connection handle-incoming-whisper-msg {:topic [group-id]}))
+         (listen connection handle-incoming-whisper-message {:topic [group-id]}))
        (doseq [topic topics]
-         (listen connection handle-incoming-whisper-msg {:topic topic}))
+         (listen connection handle-incoming-whisper-message {:topic topic}))
        (do-periodically (* 60 10 1000) send-online)
        (invoke-user-handler :initialized {:identity account})))))
 
+(defn init-pending-messages [pending-messages]
+  (set-pending-messages pending-messages))
+
 (defn watch-user [{:keys [whisper-identity]}]
   (let [topic [(user-topic whisper-identity) discovery-topic]]
-    (listen (connection) handle-incoming-whisper-msg {:topic topic})))
+    (listen (connection) handle-incoming-whisper-message {:topic topic})))
 
-(defn send-user-msg [{:keys [to content msg-id content-type]}]
-  (let [{:keys [msg-id msg] :as new-msg}
-        (make-msg {:from    (state/my-identity)
-                   :to      to
-                   :msg-id  msg-id
-                   :payload {:content      content
-                             :content-type (or content-type
-                                               default-content-type)
-                             :type         :user-msg}})]
-    (add-pending-message msg-id msg)
-    (post-msg (connection) msg)
-    new-msg))
+(defn- default-sent-callback [message-id to]
+  (fn [error _]
+    (when-not error
+      (update-pending-message message-id {:delivery-status :sent})
+      (invoke-user-handler :message-sent {:message-id message-id
+                                          :chat-id    to}))))
 
-(defn send-group-user-msg [{:keys [group-id content]}]
-  (send-group-msg {:group-id group-id
-                   :type     :group-user-msg
-                   :payload  {:content      content
-                              :content-type default-content-type}}))
+(defn send-user-message
+  ([{:keys [message-id to] :as src-message}]
+   (send-user-message src-message (default-sent-callback message-id to)))
+  ([{:keys [message-id to content content-type] :as src-message} callback]
+   (let [{:keys [message-id message] :as new-message}
+         (make-message {:from       (state/my-identity)
+                        :to         to
+                        :message-id message-id
+                        :payload    {:content      content
+                                     :content-type (or content-type
+                                                       default-content-type)
+                                     :type         :user-message}})]
+     (add-pending-message message-id src-message)
+     (post-message (connection) message callback)
+     new-message)))
+
+(defn send-group-user-message
+  ([{:keys [message-id group-id] :as message}]
+   (send-group-user-message message (default-sent-callback message-id group-id)))
+  ([{:keys [group-id content] :as message} callback]
+   (send-group-message {:group-id group-id
+                        :type     :group-user-message
+                        :payload  {:content      content
+                                   :content-type default-content-type}}
+                       message
+                       callback)))
+
+(defn send-pending-message [{:keys [message-type] :as message} callback]
+  (case (keyword message-type)
+    :user-message (send-user-message message callback)
+    :group-user-message (send-group-user-message message callback)
+    (post-message (connection) message)))
 
 (defn start-group-chat
   ([identities]
@@ -151,11 +178,11 @@
      (save-identities store group-topic identities)
      (save-group-admin store group-topic my-identity)
      (save-group-name store group-topic group-name)
-     (listen connection handle-incoming-whisper-msg {:topic [group-topic]})
+     (listen connection handle-incoming-whisper-message {:topic [group-topic]})
      (doseq [ident identities :when (not (= ident my-identity))]
-       (let [{:keys [msg-id msg]} (init-group-chat-msg ident group-topic identities keypair group-name)]
-         (add-pending-message msg-id msg {:internal? true})
-         (post-msg connection msg)))
+       (let [{:keys [message-id message]} (init-group-chat-message ident group-topic identities keypair group-name)]
+         (add-pending-message message-id message {:internal? true})
+         (post-message connection message)))
      group-topic)))
 
 (defn group-add-participant
@@ -171,13 +198,14 @@
             keypair    (get-keypair store group-id)
             group-name (group-name store group-id)]
         (save-identities store group-id identities)
-        (let [{:keys [msg-id msg]} (group-add-participant-msg new-peer-identity group-id group-name identities keypair)]
-          (add-pending-message msg-id msg {:internal? true})
-          (post-msg connection msg))
-        (send-group-msg {:group-id  group-id
-                         :type      :group-new-participant
-                         :payload   {:identity new-peer-identity}
-                         :internal? true})))))
+        (let [{:keys [message-id message]}
+              (group-add-participant-message new-peer-identity group-id group-name identities keypair)]
+          (add-pending-message message-id message {:internal? true})
+          (post-message connection message))
+        (send-group-message {:group-id  group-id
+                             :type      :group-new-participant
+                             :payload   {:identity new-peer-identity}
+                             :internal? true})))))
 
 (defn group-remove-participant
   "Only call if you are the group-admin"
@@ -193,20 +221,20 @@
         (save-identities store group-id identities)
         (save-keypair store group-id keypair)
         (doseq [ident identities :when (not (= ident my-identity))]
-          (let [{:keys [msg-id msg]} (group-remove-participant-msg ident group-id keypair identity-to-remove)]
-            (add-pending-message msg-id msg {:internal? true})
-            (post-msg connection msg)))
-        (let [{:keys [msg-id msg]} (removed-from-group-msg group-id identity-to-remove)]
-          (add-pending-message msg-id msg {:internal? true})
-          (post-msg connection msg))))))
+          (let [{:keys [message-id message]} (group-remove-participant-message ident group-id keypair identity-to-remove)]
+            (add-pending-message message-id message {:internal? true})
+            (post-message connection message)))
+        (let [{:keys [message-id message]} (removed-from-group-message group-id identity-to-remove)]
+          (add-pending-message message-id message {:internal? true})
+          (post-message connection message))))))
 
 (defn leave-group-chat [group-id]
   (let [store       (storage)
         my-identity (my-identity)]
-    (send-group-msg {:group-id  group-id
-                     :type      :left-group
-                     :payload   {:identity my-identity}
-                     :internal? true})
+    (send-group-message {:group-id  group-id
+                         :type      :group-participant-left
+                         :payload   {:identity my-identity}
+                         :internal? true})
     (remove-group-data store group-id)
     (stop-listener [group-id])))
 
@@ -219,7 +247,7 @@
   (let [topics (hashtags->topics hashtags)]
     (stop-broadcasting-discover)
     (doseq [topic topics]
-      (listen (connection) handle-incoming-whisper-msg {:topic topic}))
+      (listen (connection) handle-incoming-whisper-message {:topic topic}))
     (save-name name)
     (save-photo-path photo-path)
     (save-topics topics)
@@ -227,14 +255,6 @@
     (save-status status)
     (broadcast-status topics)
     (broadcast-status [[(user-topic (my-identity)) discovery-topic]])))
-
-(defn search-discover [hashtags]
-  (let [{:keys [msg-id msg]} (discovery-search-message hashtags)]
-    (add-pending-message msg-id msg {:internal? true})
-    (post-msg connection msg)))
-
-(defn current-connection []
-  (connection))
 
 (defn send-seen [to message-id]
   (handler/send-seen (connection) to message-id))

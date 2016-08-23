@@ -1,16 +1,15 @@
 (ns status-im.protocol.discovery
   (:require [status-im.protocol.state.state :as state :refer [connection
                                                               storage]]
-            [status-im.protocol.state.delivery :refer [add-pending-message]]
             [status-im.protocol.state.discovery :refer [save-status
                                                         get-name
                                                         get-photo-path
                                                         get-status
                                                         get-hashtags]]
+            [status-im.protocol.state.delivery :refer [upsert-pending-message]]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
             [status-im.utils.logging :as log]
-            [status-im.protocol.web3 :refer [make-msg
-                                             post-msg]]
+            [status-im.protocol.web3 :refer [make-message]]
             [cljs-time.core :refer [now]]
             [cljs-time.coerce :refer [to-long]]
             [status-im.utils.random :as random]))
@@ -43,25 +42,26 @@
 
 (defn create-discover-message
   "Create discovery message"
-  [topic payload ttl to msg-id]
-  (let [data {:msg-id  msg-id
-              :from    (state/my-identity)
-              :topics  topic
-              :ttl     ttl
-              :payload payload}]
+  [topic payload ttl to message-id]
+  (let [data {:message-id message-id
+              :send-once  true
+              :from       (state/my-identity)
+              :topics     topic
+              :ttl        ttl
+              :payload    payload}]
     (->> (cond-> data
                  to (assoc :to to))
-         (make-msg))))
+         (make-message))))
 
 (defn send-discover-messages
   "Send discover messages for each topic"
-  [{:keys [topics payload ttl to] :as msg :or {ttl weekly-broadcast-ttl
-                                               to  nil}}]
-  (let [msg-id (random/id)]
-    (log/debug (str "Sending discover status messages with msg-id " msg-id " for each topic: ") msg)
+  [{:keys [topics payload ttl to] :as message :or {ttl weekly-broadcast-ttl
+                                                   to  nil}}]
+  (let [message-id (random/id)]
+    (log/debug (str "Sending discover status messages with id " message-id " for each topic: ") message)
     (doseq [topic topics]
-      (let [{:keys [msg]} (create-discover-message topic payload ttl to msg-id)]
-        (post-msg (connection) msg)))))
+      (let [new-message (create-discover-message topic payload ttl to message-id)]
+        (upsert-pending-message new-message)))))
 
 (defn broadcast-status
   "Broadcast discover message if we have hashtags."
@@ -99,14 +99,6 @@
   (func)
   (set-interval interval func))
 
-(defn discovery-search-message [hashtags]
-  (let [topics  (hashtags->topics hashtags)
-        payload {:type     :discovery-search
-                 :hashtags hashtags}]
-    make-msg {:from    (state/my-identity)
-              :topics  topics
-              :payload payload}))
-
 (defn handle-discover-response
   "Handle discover-response messages."
   [web3 from payload]
@@ -114,25 +106,3 @@
   (when (not (= (state/my-identity) from))
     (invoke-user-handler :discover-response {:from    from
                                              :payload payload})))
-
-(defn handle-discovery-search
-  "Handle discover-search messages."
-  [web3 from payload]
-  (log/debug "Received discover-search message: " payload)
-  ;;TODO (task #188):
-  (broadcast-status from))
-
-#_(comment
-
-    (get-next-latitude 40.5)
-
-    (get-next-latitude 90)
-
-    (get-next-longitude 40.5)
-
-    (get-next-longitude 180)
-
-    (discover-in-proximity {:latitude 90 :longitude 180} [])
-
-    (.getCurrentPosition (.-geolocation js/navigator) #(.log js/console %) #(.log js/console %) {:enableHighAccuracy true, :timeout 20000, :maximumAge 1000})
-    )

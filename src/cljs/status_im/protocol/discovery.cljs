@@ -6,10 +6,10 @@
                                                         get-photo-path
                                                         get-status
                                                         get-hashtags]]
+            [status-im.protocol.state.delivery :refer [upsert-pending-message]]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
             [status-im.utils.logging :as log]
-            [status-im.protocol.web3 :refer [make-message
-                                             post-message]]
+            [status-im.protocol.web3 :refer [make-message]]
             [cljs-time.core :refer [now]]
             [cljs-time.coerce :refer [to-long]]
             [status-im.utils.random :as random]))
@@ -44,6 +44,7 @@
   "Create discovery message"
   [topic payload ttl to message-id]
   (let [data {:message-id message-id
+              :send-once  true
               :from       (state/my-identity)
               :topics     topic
               :ttl        ttl
@@ -59,8 +60,8 @@
   (let [message-id (random/id)]
     (log/debug (str "Sending discover status messages with id " message-id " for each topic: ") message)
     (doseq [topic topics]
-      (let [{:keys [message]} (create-discover-message topic payload ttl to message-id)]
-        (post-message (connection) message)))))
+      (let [new-message (create-discover-message topic payload ttl to message-id)]
+        (upsert-pending-message new-message)))))
 
 (defn broadcast-status
   "Broadcast discover message if we have hashtags."
@@ -97,14 +98,6 @@
   [interval func]
   (func)
   (set-interval interval func))
-
-(defn discovery-search-message [hashtags]
-  (let [topics  (hashtags->topics hashtags)
-        payload {:type     :discovery-search
-                 :hashtags hashtags}]
-    make-message {:from    (state/my-identity)
-                  :topics  topics
-                  :payload payload}))
 
 (defn handle-discover-response
   "Handle discover-response messages."

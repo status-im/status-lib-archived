@@ -4,41 +4,49 @@
             [cljs-time.coerce :refer [to-long
                                       from-long]]
             [status-im.utils.logging :as log]
+            [status-im.protocol.state.state :refer [connection]]
+            [status-im.protocol.web3 :refer [post-message]]
             [status-im.protocol.state.delivery :as state]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
-            [status-im.protocol.defaults :refer [max-retry-send-count
+            [status-im.protocol.defaults :refer [max-send-attempts
                                                  ack-wait-timeout
                                                  sending-retry-timeout
                                                  check-delivery-interval]])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(defn needs-to-be-resent? [[_ {:keys [timestamp delivery-status]}]]
-  (let [delivery-status (keyword delivery-status)]
-    (or (and (= delivery-status :sent)
+(defn- needs-to-be-resent? [[_ {:keys [timestamp status]}]]
+  (let [status (keyword status)]
+    (or (= timestamp 0)
+        (and (= status :sent)
              (t/before? (t/plus (from-long timestamp) ack-wait-timeout) (t/now)))
-        (and (= delivery-status :sending)
+        (and (= status :sending)
              (t/before? (t/plus (from-long timestamp) sending-retry-timeout) (t/now))))))
 
-(defn delivery-pending-messages []
+(defn- delivery-pending-messages []
   (filter #(needs-to-be-resent? %) (state/pending-messages)))
 
-(defn start-delivery-loop [send-message-fn]
+(defn- post-message-callback [{:keys [message-id chat-id retry-count send-once] :as message}]
+  (fn [error _]
+    (if error
+      (state/upsert-pending-message (assoc message :status :sending))
+      (do
+        (when chat-id
+          (invoke-user-handler :message-sent {:message-id message-id
+                                              :chat-id    chat-id}))
+        (if send-once
+          (state/remove-pending-message message-id)
+          (state/upsert-pending-message (assoc message :status :sent
+                                                       :retry-count (inc retry-count))))))))
+
+(defn start-delivery-loop []
   (go (loop [_ (<! (timeout check-delivery-interval))]
-        (doseq [[message-id {:keys [chat-id retry-count]
-                             :as message
-                             :or {retry-count 0}}] (delivery-pending-messages)]
+        (doseq [[_ {:keys [message-id chat-id retry-count message] :as pending-message}] (delivery-pending-messages)]
           (log/info "Delivery-loop: Message" message-id "is pending, retry-count=" retry-count)
-          (if (< retry-count max-retry-send-count)
+          (if (< retry-count max-send-attempts)
             (do
-              (log/info "Delivery-loop: Re-sending message" message-id)
-              (let [upd-message (assoc message :timestamp (to-long (t/now)))]
-                (send-message-fn upd-message (fn [error _]
-                                               (when-not error
-                                                 (let [upd-message (merge upd-message
-                                                                          {:retry-count     (inc retry-count)
-                                                                           :delivery-status :sent})]
-                                                   (state/add-pending-message message-id upd-message)
-                                                   (invoke-user-handler :message-update upd-message)))))))
+              (log/info "Delivery-loop: trying to send message" message-id)
+              (let [pending-message (assoc pending-message :timestamp (to-long (t/now)))]
+                (post-message (connection) message (post-message-callback pending-message))))
             (do
               (log/info "Delivery-loop: Retry-count for message" message-id "reached maximum")
               (let [internal? (state/internal? message-id)]

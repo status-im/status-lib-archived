@@ -4,6 +4,7 @@
             [status-im.utils.encryption :refer [decrypt]]
             [status-im.protocol.state.state :as state :refer [storage]]
             [status-im.protocol.state.delivery :refer [internal?
+                                                       upsert-pending-message
                                                        get-pending-message
                                                        update-pending-message-identities]]
             [status-im.protocol.state.group-chat :refer [save-keypair
@@ -20,7 +21,6 @@
             [status-im.protocol.discovery :refer [handle-discover-response]]
             [status-im.protocol.web3 :refer [to-utf8
                                              make-message
-                                             post-message
                                              listen
                                              stop-listener]]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
@@ -54,22 +54,24 @@
    (when (and (not= to (state/my-identity))
               (not= from "0x0"))
      (log/info "Acking message:" message-id "To:" to)
-     (let [{:keys [message]} (make-message {:from    (state/my-identity)
-                                            :to      to
-                                            :payload (merge {:type           :ack
-                                                             :ack-message-id message-id}
-                                                            ack-info)})]
-       (post-message web3 message)))))
+     (let [new-message (make-message {:from      (state/my-identity)
+                                      :send-once false
+                                      :to        to
+                                      :payload   (merge {:type           :ack
+                                                         :ack-message-id message-id}
+                                                        ack-info)})]
+       (upsert-pending-message new-message)))))
 
 (defn send-seen
   [web3 to message-id]
   (log/info "Send seen message:" message-id "To:" to)
-  (let [{:keys [message]} (make-message {:from    (state/my-identity)
-                                         :to      to
-                                         :keep-id false
-                                         :payload {:type       :seen
-                                                   :message-id message-id}})]
-    (post-message web3 message)))
+  (let [new-message (make-message {:from      (state/my-identity)
+                                   :to        to
+                                   :send-once false
+                                   :keep-id   false
+                                   :payload   {:type       :seen
+                                               :message-id message-id}})]
+    (upsert-pending-message new-message)))
 
 (defn handle-user-message [web3 to from {:keys [message-id] :as payload}]
   (send-ack web3 to from message-id)

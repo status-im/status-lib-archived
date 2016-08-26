@@ -6,6 +6,8 @@
             [status-im.utils.encryption :refer [encrypt]]
             [status-im.protocol.state.state :as state]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
+            [cljs-time.core :refer [now]]
+            [cljs-time.coerce :refer [to-long]]
             cljsjs.web3)
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
@@ -99,22 +101,27 @@
        (str)))
 
 (defn make-message
-  "Returns [id message], `message` is formed for Web3.shh.post()"
-  [{:keys [from to ttl topics payload encrypt? public-key clear-info message-id keep-id]
+  "Returns pending message, `message` key is formed for Web3.shh.post()"
+  [{:keys [from to chat-id ttl topics payload encrypt? public-key clear-info message-id keep-id send-once]
     :or   {ttl    status-message-ttl
            topics []}}]
   (let [message-id' (or message-id (random/id))]
-    {:message-id message-id'
-     :message    (cond-> {:ttl     ttl
-                          :topics  (->> (conj topics status-app-topic)
-                                        (mapv from-utf8))
-                          :payload (cond->> payload
-                                            (not keep-id) (merge {:message-id message-id'})
-                                            true (str)
-                                            encrypt? (encrypt-payload public-key clear-info)
-                                            true (from-utf8))}
-                         from (assoc :from from)
-                         to (assoc :to to))}))
+    {:message-id  message-id'
+     :chat-id     (or chat-id to)
+     :message     (cond-> {:ttl     ttl
+                           :topics  (->> (conj topics status-app-topic)
+                                         (mapv from-utf8))
+                           :payload (cond->> payload
+                                             (not keep-id) (merge {:message-id message-id'})
+                                             true (str)
+                                             encrypt? (encrypt-payload public-key clear-info)
+                                             true (from-utf8))}
+                          from (assoc :from from)
+                          to (assoc :to to))
+     :send-once   send-once
+     :retry-count 0
+     :timestamp   0
+     :status      :sending}))
 
 (defn listen
   "Returns a filter which can be stopped with (stop-whisper-listener)"

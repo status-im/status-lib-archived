@@ -75,8 +75,8 @@
 
 (defn handle-user-message [web3 to from {:keys [message-id] :as payload}]
   (send-ack web3 to from message-id)
-  (invoke-user-handler :message-received {:from    to
-                                          :to      from
+  (invoke-user-handler :message-received {:from    from
+                                          :to      to
                                           :payload payload}))
 
 (defn handle-group-init-chat [web3 to from {:keys [group-topic keypair identities message-id group-name]}]

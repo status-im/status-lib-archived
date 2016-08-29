@@ -1,59 +1,56 @@
 (ns status-im.protocol.state.delivery
   (:require [cljs-time.core :as t]
             [status-im.utils.logging :as log]
-            [status-im.protocol.state.state :refer [state]])
+            [status-im.protocol.state.state :refer [state]]
+            [status-im.protocol.user-handler :refer [invoke-user-handler]])
   (:require-macros [status-im.utils.lang-macros :refer [condas->]]))
 
-(defn inc-retry-count [msg-id]
+(defn pending-messages []
+  (:pending-messages @state))
+
+(defn set-pending-messages
+  [messages]
+  (swap! state assoc :pending-messages messages))
+
+(defn upsert-pending-message
+  ([message]
+   (upsert-pending-message message nil))
+  ([{:keys [message-id] :as message} {:keys [identities internal?]}]
+   (let [message (merge message {:identities  identities
+                                 :internal?   internal?})]
+     (invoke-user-handler :pending-message-upsert {:message message})
+     (swap! state assoc-in [:pending-messages message-id] message))))
+
+(defn update-pending-message [message-id new-message-data]
   (swap! state (fn [state]
-                 (if (get-in state [:pending-messages msg-id])
-                   (update-in state [:pending-messages msg-id :retry-count] inc)
+                 (if-let [message (get-in state [:pending-messages message-id])]
+                   (let [new-message (merge message new-message-data)]
+                     (invoke-user-handler :pending-message-upsert {:message new-message})
+                     (assoc-in state [:pending-messages message-id] new-message))
                    state))))
 
-(defn pending? [msg-id]
-  (get-in @state [:pending-messages msg-id]))
-
-(defn push-msg-to-delivery-queue [state msg-id]
-  (update-in state [:delivery-queue] conj {:timestamp (t/now)
-                                           :msg-id    msg-id}))
-
-(defn add-pending-message
-  ([msg-id msg {:keys [identities internal?] :as opts}]
-   (log/debug "add-pending-message" msg-id msg identities internal?)
-   (swap! state (fn [state]
-                  (-> (assoc-in state [:pending-messages msg-id] {:msg         msg
-                                                                  :retry-count 0
-                                                                  :identities  identities
-                                                                  :internal?   internal?})
-                      (push-msg-to-delivery-queue msg-id)))))
-  ([msg-id msg]
-   (add-pending-message msg-id msg nil)))
-
-(defn pop-delivery-queue []
-  (swap! state update-in [:delivery-queue] pop))
-
-(defn push-delivery-queue [msg-id]
-  (swap! state push-msg-to-delivery-queue msg-id))
-
-(defn internal? [msg-id]
-  (get-in @state [:pending-messages msg-id :internal?]))
-
-(defn update-pending-message [msg-id from]
+(defn update-pending-message-identities [id from]
   (swap! state update-in [:pending-messages]
-         (fn [pending-msgs]
-           (condas-> pending-msgs msgs
-                     (get-in msgs [msg-id :identities])     ;; test
+         (fn [pending-messages]
+           (condas-> pending-messages messages
+                     (get-in messages [id :identities])         ;; test
                      (do
-                       (log/info "Removing identity" from "from pending msg" msg-id)
-                       (update-in msgs [msg-id :identities] disj from))
+                       (log/info "Removing identity" from "from pending message" id)
+                       (invoke-user-handler :pending-message-upsert {:message (get messages id)})
+                       (update-in messages [id :identities] disj from))
 
-                     (empty? (get-in msgs [msg-id :identities])) ;; test
+                     (empty? (get-in messages [id :identities])) ;; test
                      (do
-                       (log/info "Removing message" msg-id "from pending")
-                       (dissoc msgs msg-id))))))
+                       (log/info "Removing message" id "f=rom pending")
+                       (invoke-user-handler :pending-message-remove {:message-id id})
+                       (dissoc messages id))))))
 
-(defn remove-pending-message [msg-id]
-  (swap! state update-in [:pending-messages] dissoc msg-id))
+(defn remove-pending-message [message-id]
+  (invoke-user-handler :pending-message-remove {:message-id message-id})
+  (swap! state update-in [:pending-messages] dissoc message-id))
 
-(defn delivery-queue []
-  (:delivery-queue @state))
+(defn internal? [message-id]
+  (get-in @state [:pending-messages message-id :internal?]))
+
+(defn get-pending-message [message-id]
+  (get-in @state [:pending-messages message-id]))

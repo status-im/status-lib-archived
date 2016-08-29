@@ -4,8 +4,9 @@
             [status-im.utils.encryption :refer [decrypt]]
             [status-im.protocol.state.state :as state :refer [storage]]
             [status-im.protocol.state.delivery :refer [internal?
-                                                       pending?
-                                                       update-pending-message]]
+                                                       upsert-pending-message
+                                                       get-pending-message
+                                                       update-pending-message-identities]]
             [status-im.protocol.state.group-chat :refer [save-keypair
                                                          save-identities
                                                          get-identities
@@ -17,69 +18,72 @@
                                                          group-admin?
                                                          remove-identity
                                                          group-member?]]
-            [status-im.protocol.discovery :refer [handle-discovery-search
-                                                  handle-discover-response]]
+            [status-im.protocol.discovery :refer [handle-discover-response]]
             [status-im.protocol.web3 :refer [to-utf8
-                                             make-msg
-                                             post-msg
+                                             make-message
                                              listen
                                              stop-listener]]
             [status-im.protocol.user-handler :refer [invoke-user-handler]]
             [status-im.protocol.defaults :refer [default-content-type]]))
 
-(defn handle-ack [from {:keys [ack-msg-id msg-id] :as payload}]
-  (log/info "Got ack for message:" ack-msg-id "from:" from)
-  (when-not (pending? ack-msg-id)
-    (log/info "Got ack for message" ack-msg-id "which isn't pending."))
-  (let [internal-message? (internal? ack-msg-id)]
-    (update-pending-message ack-msg-id from)
-    (when-not internal-message?
-      (invoke-user-handler :msg-acked {:msg-id ack-msg-id
-                                       :from   from}))
-    (when-let [group-topic (payload :group-invite)]
-      (invoke-user-handler :group-chat-invite-acked {:from       from
-                                                     :ack-msg-id ack-msg-id
-                                                     :group-id   group-topic}))))
+(declare handle-incoming-whisper-message)
 
-(defn handle-seen [from {:keys [msg-id]}]
-  (log/info "Got seen for message:" msg-id "from:" from)
-  (invoke-user-handler :msg-seen {:msg-id msg-id
-                                  :from   from}))
+(defn handle-ack [from {:keys [ack-message-id message-id] :as payload}]
+  (log/info "Got ack for message:" ack-message-id "from:" from)
+  (when-not (get-pending-message ack-message-id)
+    (log/info "Got ack for message" ack-message-id "which isn't pending."))
+  (let [internal-message? (internal? ack-message-id)]
+    (update-pending-message-identities ack-message-id from)
+    (when-not internal-message?
+      (invoke-user-handler :message-delivered {:message-id ack-message-id
+                                               :from       from}))
+    (when-let [group-topic (payload :group-invite)]
+      (invoke-user-handler :group-chat-invite-acked {:from           from
+                                                     :ack-message-id ack-message-id
+                                                     :group-id       group-topic}))))
+
+(defn handle-seen [from {:keys [message-id]}]
+  (log/info "Got seen for message:" message-id "from:" from)
+  (invoke-user-handler :message-seen {:message-id message-id
+                                      :from       from}))
+
 (defn send-ack
-  ([web3 to msg-id]
-   (send-ack web3 to msg-id nil))
-  ([web3 to msg-id ack-info]
-   (log/info "Acking message:" msg-id "To:" to)
-   (let [{:keys [msg]} (make-msg {:from    (state/my-identity)
-                                  :to      to
-                                  :payload (merge {:type       :ack
-                                                   :ack-msg-id msg-id}
-                                                  ack-info)})]
-     (post-msg web3 msg))))
+  ([web3 from to message-id]
+   (send-ack web3 from to message-id nil))
+  ([web3 from to message-id ack-info]
+   (when (and (not= to (state/my-identity))
+              (not= from "0x0"))
+     (log/info "Acking message:" message-id "To:" to)
+     (let [new-message (make-message {:from      (state/my-identity)
+                                      :send-once false
+                                      :to        to
+                                      :payload   (merge {:type           :ack
+                                                         :ack-message-id message-id}
+                                                        ack-info)})]
+       (upsert-pending-message new-message)))))
 
 (defn send-seen
-  [web3 to msg-id]
-  (log/info "Send seen message:" msg-id "To:" to)
-  (let [{:keys [msg]} (make-msg {:from        (state/my-identity)
-                                 :to          to
-                                 :keep-msg-id false
-                                 :payload     {:type   :seen
-                                               :msg-id msg-id}})]
-    (post-msg web3 msg)))
+  [web3 to message-id]
+  (log/info "Send seen message:" message-id "To:" to)
+  (let [new-message (make-message {:from      (state/my-identity)
+                                   :to        to
+                                   :send-once false
+                                   :keep-id   false
+                                   :payload   {:type       :seen
+                                               :message-id message-id}})]
+    (upsert-pending-message new-message)))
 
-(defn handle-user-msg [web3 from to {:keys [msg-id] :as payload}]
-  (send-ack web3 from msg-id)
-  (invoke-user-handler :new-msg {:from    from
-                                 :to      to
-                                 :payload payload}))
+(defn handle-user-message [web3 to from {:keys [message-id] :as payload}]
+  (send-ack web3 to from message-id)
+  (invoke-user-handler :message-received {:from    from
+                                          :to      to
+                                          :payload payload}))
 
-(declare handle-incoming-whisper-msg)
-
-(defn handle-new-group-chat [web3 from {:keys [group-topic keypair identities msg-id group-name]}]
-  (send-ack web3 from msg-id {:group-invite group-topic})
+(defn handle-group-init-chat [web3 to from {:keys [group-topic keypair identities message-id group-name]}]
+  (send-ack web3 to from message-id {:group-invite group-topic})
   (let [store (storage)]
     (when-not (chat-exists? store group-topic)
-      (listen web3 handle-incoming-whisper-msg {:topic [group-topic]})
+      (listen web3 handle-incoming-whisper-message {:topic [group-topic]})
       (save-keypair store group-topic keypair)
       (save-identities store group-topic identities)
       (save-group-admin store group-topic from)
@@ -88,7 +92,7 @@
                                             :group-id   group-topic
                                             :group-name group-name}))))
 
-(defn decrypt-group-msg [group-topic encrypted-payload]
+(defn decrypt-group-message [group-topic encrypted-payload]
   (let [store (storage)]
     (when-let [{private-key :private} (get-keypair store group-topic)]
       (try
@@ -98,68 +102,68 @@
         (catch :default e
           (log/warn "Failed to decrypt group message for group" group-topic e))))))
 
-(defn handle-group-user-msg [web3 from {:keys [msg-id group-topic] :as payload}]
-  (send-ack web3 from msg-id)
-  (invoke-user-handler :new-group-msg {:from     from
-                                       :group-id group-topic
-                                       :payload  payload}))
+(defn handle-group-user-message [web3 to from {:keys [message-id group-topic] :as payload}]
+  (send-ack web3 to from message-id)
+  (invoke-user-handler :new-group-message {:from     from
+                                           :group-id group-topic
+                                           :payload  payload}))
 
-(defn handle-group-new-participant [web3 from {:keys [msg-id identity group-topic]}]
+(defn handle-group-new-participant [web3 to from {:keys [message-id identity group-topic]}]
   (let [store (storage)]
     (if (group-admin? store group-topic from)
       (do
-        (send-ack web3 from msg-id)
+        (send-ack web3 to from message-id)
         (when-not (group-member? store group-topic identity)
           (add-identity store group-topic identity)
-          (invoke-user-handler :group-new-participant {:identity identity
-                                                       :group-id group-topic
-                                                       :from     from
-                                                       :msg-id   msg-id})))
+          (invoke-user-handler :group-new-participant {:identity   identity
+                                                       :group-id   group-topic
+                                                       :from       from
+                                                       :message-id message-id})))
       (log/warn "Ignoring group-new-participant for group" group-topic "from a non group-admin user" from))))
 
-(defn handle-group-removed-participant [web3 from {:keys [keypair group-topic msg-id removed-identity]}]
+(defn handle-group-removed-participant [web3 to from {:keys [keypair group-topic message-id removed-identity]}]
   (let [store (storage)]
     (if (group-admin? store group-topic from)
       (do
-        (send-ack web3 from msg-id)
+        (send-ack web3 to from message-id)
         (when (group-member? store group-topic removed-identity)
           (save-keypair store group-topic keypair)
           (remove-identity store group-topic removed-identity)
-          (invoke-user-handler :group-removed-participant {:identity removed-identity
-                                                           :group-id group-topic
-                                                           :from     from
-                                                           :msg-id   msg-id})))
+          (invoke-user-handler :group-removed-participant {:identity   removed-identity
+                                                           :group-id   group-topic
+                                                           :from       from
+                                                           :message-id message-id})))
       (log/warn "Ignoring group-removed-participant for group" group-topic "from a non group-admin user" from))))
 
-(defn handle-removed-from-group [web3 from {:keys [group-topic msg-id]}]
+(defn handle-group-you-have-been-removed [web3 to from {:keys [group-topic message-id]}]
   (let [store (storage)]
     (if (group-admin? store group-topic from)
       (do
-        (send-ack web3 from msg-id)
+        (send-ack web3 to from message-id)
         (when (group-member? store group-topic (state/my-identity))
           (remove-group-data store group-topic)
           (stop-listener [group-topic])
-          (invoke-user-handler :removed-from-group {:group-id group-topic
-                                                    :from     from
-                                                    :msg-id   msg-id})))
+          (invoke-user-handler :removed-from-group {:group-id   group-topic
+                                                    :from       from
+                                                    :message-id message-id})))
       (log/warn "Ignoring removed-from-group for group" group-topic "from a non group-admin user" from))))
 
-(defn handle-participant-left-group [web3 from {:keys [group-topic msg-id]}]
+(defn handle-group-user-left [web3 to from {:keys [group-topic message-id]}]
   (let [store (storage)]
-    (send-ack web3 from msg-id)
+    (send-ack web3 to from message-id)
     (when (group-member? store group-topic from)
       (remove-identity store group-topic from)
-      (invoke-user-handler :participant-left-group {:group-id group-topic
-                                                    :from     from
-                                                    :msg-id   msg-id}))))
+      (invoke-user-handler :participant-left-group {:group-id   group-topic
+                                                    :from       from
+                                                    :message-id message-id}))))
 
-(defn handle-group-msg [web3 msg-type from {:keys [enc-payload group-topic]}]
-  (if-let [payload (decrypt-group-msg group-topic enc-payload)]
-    (case msg-type
-      :group-user-msg (handle-group-user-msg web3 from payload)
-      :group-new-participant (handle-group-new-participant web3 from payload)
-      :left-group (handle-participant-left-group web3 from payload))
-    (log/debug "Could not decrypt group msg, possibly you've left the group.")))
+(defn handle-group-message [web3 message-type to from {:keys [enc-payload group-topic]}]
+  (if-let [payload (decrypt-group-message group-topic enc-payload)]
+    (case message-type
+      :group-user-message (handle-group-user-message web3 to from payload)
+      :group-new-participant (handle-group-new-participant web3 to from payload)
+      :group-participant-left (handle-group-user-left web3 to from payload))
+    (log/debug "Could not decrypt group message, possibly you've left the group.")))
 
 (defn handle-contact-update [from payload]
   (log/debug "Received contact-update message: " payload)
@@ -170,31 +174,30 @@
   (invoke-user-handler :contact-online {:from    from
                                         :payload payload}))
 
-(defn handle-incoming-whisper-msg [web3 msg]
-  (log/info "Got whisper message:" msg)
+(defn handle-incoming-whisper-message [web3 message]
+  (log/info "Got whisper message:" message)
   (let [{from    :from
          to      :to
          topics  :topics                                    ;; always empty (bug in go-ethereum?)
-         payload :payload} (js->clj msg :keywordize-keys true)]
+         payload :payload} (js->clj message :keywordize-keys true)]
     (if (or (= to "0x0")
             (= to (state/my-identity)))
-      (let [{msg-type :type :as payload} (->> (to-utf8 payload)
-                                              (read-string))]
-        (case (keyword msg-type)
+      (let [{message-type :type :as payload} (->> (to-utf8 payload)
+                                                  (read-string))]
+        (case (keyword message-type)
           :ack (handle-ack from payload)
           :seen (handle-seen from payload)
-          :user-msg (handle-user-msg web3 from to payload)
-          :init-group-chat (handle-new-group-chat web3 from payload)
-          :group-removed-participant (handle-group-removed-participant web3 from payload)
-          :removed-from-group (handle-removed-from-group web3 from payload)
-          :group-user-msg (handle-group-msg web3 msg-type from payload)
-          :group-new-participant (handle-group-msg web3 msg-type from payload)
-          :left-group (handle-group-msg web3 msg-type from payload)
-          :discovery-search (handle-discovery-search web3 from payload)
+          :user-message (handle-user-message web3 to from payload)
+          :group-init-chat (handle-group-init-chat web3 to from payload)
+          :group-you-have-been-removed (handle-group-you-have-been-removed web3 to from payload)
+          :group-user-message (handle-group-message web3 message-type to from payload)
+          :group-new-participant (handle-group-message web3 message-type to from payload)
+          :group-participant-left (handle-group-message web3 message-type to from payload)
+          :group-removed-participant (handle-group-removed-participant web3 to from payload)
           :discover-response (handle-discover-response web3 from payload)
           :contact-update (handle-contact-update from payload)
           :contact-online (handle-contact-online from payload)
-          (if msg-type
-            (log/debug "Undefined message type: " (name msg-type))
+          (if message-type
+            (log/debug "Undefined message type: " (name message-type))
             (log/debug "Nil message type"))))
       (log/warn "My identity:" (state/my-identity) "Message To:" to "Message is encrypted for someone else, ignoring"))))

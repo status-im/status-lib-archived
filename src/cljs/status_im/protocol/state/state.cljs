@@ -3,7 +3,6 @@
 
 (def state (atom {:pending-messages {}
                   :filters          {}
-                  :delivery-queue   #queue []
                   :external-handler nil
                   :account          nil
                   :connection       nil

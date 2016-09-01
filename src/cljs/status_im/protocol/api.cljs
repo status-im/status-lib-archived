@@ -6,7 +6,8 @@
                                                               set-connection
                                                               set-account
                                                               connection
-                                                              storage]]
+                                                              storage
+                                                              set-inactive-groups]]
             [status-im.protocol.state.delivery :refer [upsert-pending-message
                                                        update-pending-message
                                                        set-pending-messages]]
@@ -40,7 +41,6 @@
             [status-im.utils.encryption :refer [new-keypair]]
             [status-im.protocol.group-chat :refer [send-group-message
                                                    init-group-chat-message
-                                                   group-add-participant-message
                                                    group-remove-participant-message
                                                    removed-from-group-message]]
             [status-im.protocol.discovery :refer [hashtags->topics
@@ -93,7 +93,7 @@
    "
   ([parameters] (init-protocol {:public-key "no-identity"
                                 :address    "no-address"} parameters))
-  ([account {:keys [handler ethereum-rpc-url storage active-group-ids]}]
+  ([account {:keys [handler ethereum-rpc-url storage active-group-ids inactive-groups]}]
    (when (seq (state/get-all-filters))
      (stop-watching-filters))
    (set-storage storage)
@@ -103,6 +103,7 @@
            topics     (get-topics)]
        (set-connection connection)
        (set-account account)
+       (set-inactive-groups inactive-groups)
        (listen connection handle-incoming-whisper-message)
        (start-delivery-loop)
        (doseq [group-id active-group-ids]
@@ -170,7 +171,7 @@
             keypair    (get-keypair store group-id)
             group-name (group-name store group-id)]
         (save-identities store group-id identities)
-        (let [new-message (group-add-participant-message new-peer-identity group-id group-name identities keypair)]
+        (let [new-message (init-group-chat-message new-peer-identity group-id identities keypair group-name)]
           (upsert-pending-message new-message {:internal? true}))
         (send-group-message {:group-id  group-id
                              :type      :group-new-participant

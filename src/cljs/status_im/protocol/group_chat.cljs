@@ -4,7 +4,9 @@
             [status-im.protocol.state.delivery :refer [upsert-pending-message]]
             [status-im.protocol.state.group-chat :refer [get-keypair
                                                          get-peer-identities]]
-            [status-im.protocol.web3 :refer [make-message]]))
+            [status-im.protocol.web3 :refer [make-message]]
+            [cljs-time.core :refer [now]]
+            [cljs-time.coerce :refer [to-long]]))
 
 (defn make-group-message [group-id public-key payload type]
   (make-message {:from       (state/my-identity)
@@ -13,7 +15,7 @@
                  :topics     [group-id]
                  :encrypt?   true
                  :public-key public-key
-                 :payload    payload
+                 :payload    (assoc payload :timestamp (to-long (now)))
                  :clear-info {:group-topic group-id
                               :type        type}}))
 
@@ -33,16 +35,7 @@
                              :group-topic group-topic
                              :group-name  group-name
                              :identities  identities
-                             :keypair     keypair}}))
-
-(defn group-add-participant-message [to group-id group-name identities keypair]
-  (make-message {:from      (state/my-identity)
-                 :to        to
-                 :send-once false
-                 :payload   {:type        :group-init-chat
-                             :group-topic group-id
-                             :group-name  group-name
-                             :identities  identities
+                             :timestamp   (to-long (now))
                              :keypair     keypair}}))
 
 (defn group-remove-participant-message [to group-id keypair identity-to-remove]

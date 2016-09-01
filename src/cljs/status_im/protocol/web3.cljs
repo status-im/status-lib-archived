@@ -85,7 +85,7 @@
    (post-message web3 message nil))
   ([web3 message callback]
    (let [js-message (clj->js message)]
-     (log/info "Sending whisper message:" js-message)
+     (log/info "Sending whisper message")
      (-> (whisper web3)
          (.post js-message
                 (or callback (fn [error result]

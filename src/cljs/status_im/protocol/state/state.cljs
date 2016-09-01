@@ -32,6 +32,12 @@
 (defn set-account [identity]
   (swap! state assoc :account identity))
 
+(defn set-inactive-groups [groups]
+  (swap! state assoc :inactive-groups groups))
+
+(defn get-inactive-groups []
+  (:inactive-groups @state))
+
 (defn set-connection [connection]
   (swap! state assoc :connection connection))
 

@@ -21,7 +21,8 @@
 (def discovery-user-topic "status-user-")
 (def discovery-hashtag-topic "status-hashtag-")
 
-(def daily-broadcast-ttl (* 60 60 24))
+(def hourly-broadcast-ttl (* 60 60))
+(def daily-broadcast-ttl (* hourly-broadcast-ttl 24))
 (def weekly-broadcast-ttl (* daily-broadcast-ttl 7))
 (def monthly-broadcast-ttl (* daily-broadcast-ttl 30))
 
@@ -117,7 +118,7 @@
   "Broadcast user's online presence"
   [topics]
   (send-discover-messages {:topics  topics
-                           :ttl     daily-broadcast-ttl
+                           :ttl     hourly-broadcast-ttl
                            :payload {:at   (to-long (now))
                                      :type :contact-online}}))
 

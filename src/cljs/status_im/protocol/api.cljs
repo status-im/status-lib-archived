@@ -8,8 +8,8 @@
                                                               connection
                                                               storage]]
             [status-im.protocol.state.delivery :refer [upsert-pending-message
-                                                       update-pending-message
-                                                       set-pending-messages]]
+                                                       set-pending-messages
+                                                       pending-messages]]
             [status-im.protocol.state.group-chat :refer [save-keypair
                                                          get-keypair
                                                          get-peer-identities
@@ -52,7 +52,8 @@
                                                   do-periodically
                                                   init-discovery-keypair
                                                   get-discovery-keypair]]
-            [status-im.protocol.defaults :refer [default-content-type]]
+            [status-im.protocol.defaults :refer [default-content-type
+                                                 send-online-period]]
             [status-im.utils.logging :as log])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
@@ -112,7 +113,7 @@
          (listen connection handle-incoming-whisper-message {:topic [group-id]}))
        (doseq [topic topics]
          (listen connection handle-incoming-whisper-message {:topic topic}))
-       (do-periodically (* 60 10 1000) send-online)
+       (do-periodically (* send-online-period 1000) send-online)
        (invoke-user-handler :initialized {:identity account})))))
 
 (defn init-pending-messages [pending-messages]
@@ -260,3 +261,13 @@
                                                :type    :user-discovery-keypair}})]
     (upsert-pending-message new-message)
     new-message))
+
+(defn resend-pending-messages [to]
+  (let [messages (->> (pending-messages)
+                      (filter (fn [[_ {:keys [chat-id identities status]}]]
+                                (and (= (keyword status) :failed)
+                                     (or (= chat-id to)
+                                         (some #{to} identities))))))]
+    (doseq [[_ message] messages]
+      (upsert-pending-message (assoc message :status :sending
+                                             :retry-count 0)))))

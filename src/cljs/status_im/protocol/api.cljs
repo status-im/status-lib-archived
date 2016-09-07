@@ -8,7 +8,6 @@
                                                               connection
                                                               storage]]
             [status-im.protocol.state.delivery :refer [upsert-pending-message
-                                                       update-pending-message
                                                        set-pending-messages]]
             [status-im.protocol.state.group-chat :refer [save-keypair
                                                          get-keypair
@@ -256,3 +255,6 @@
                                                :type    :user-discovery-keypair}})]
     (upsert-pending-message new-message)
     new-message))
+
+(defn resend-pending-messages [to]
+  (.log js/console "ALWX RESENDING MESSAGES TO " to))

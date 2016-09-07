@@ -21,14 +21,6 @@
      (invoke-user-handler :pending-message-upsert {:message message})
      (swap! state assoc-in [:pending-messages message-id] message))))
 
-(defn update-pending-message [message-id new-message-data]
-  (swap! state (fn [state]
-                 (if-let [message (get-in state [:pending-messages message-id])]
-                   (let [new-message (merge message new-message-data)]
-                     (invoke-user-handler :pending-message-upsert {:message new-message})
-                     (assoc-in state [:pending-messages message-id] new-message))
-                   state))))
-
 (defn update-pending-message-identities [id from]
   (swap! state update-in [:pending-messages]
          (fn [pending-messages]
@@ -41,7 +33,7 @@
 
                      (empty? (get-in messages [id :identities])) ;; test
                      (do
-                       (log/info "Removing message" id "f=rom pending")
+                       (log/info "Removing message" id "from pending")
                        (invoke-user-handler :pending-message-remove {:message-id id})
                        (dissoc messages id))))))
 

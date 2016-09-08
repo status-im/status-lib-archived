@@ -49,7 +49,9 @@
                                                   broadcast-status
                                                   broadcast-account-update
                                                   broadcast-online
-                                                  do-periodically]]
+                                                  do-periodically
+                                                  init-discovery-keypair
+                                                  get-discovery-keypair]]
             [status-im.protocol.defaults :refer [default-content-type]]
             [status-im.utils.logging :as log])
   (:require-macros [cljs.core.async.macros :refer [go]]))
@@ -103,6 +105,7 @@
            topics     (get-topics)]
        (set-connection connection)
        (set-account account)
+       (init-discovery-keypair)
        (listen connection handle-incoming-whisper-message)
        (start-delivery-loop)
        (doseq [group-id active-group-ids]
@@ -115,9 +118,13 @@
 (defn init-pending-messages [pending-messages]
   (set-pending-messages pending-messages))
 
-(defn watch-user [{:keys [whisper-identity]}]
+(defn watch-user [whisper-identity]
   (let [topic [(user-topic whisper-identity) discovery-topic]]
     (listen (connection) handle-incoming-whisper-message {:topic topic})))
+
+(defn stop-watching-user [whisper-identity]
+  (let [topic [(user-topic whisper-identity) discovery-topic]]
+    (stop-listener [topic])))
 
 (defn send-user-message [{:keys [message-id to content content-type]}]
   (let [new-message (make-message {:from       (state/my-identity)
@@ -128,6 +135,19 @@
                                                 :content-type (or content-type
                                                                   default-content-type)
                                                 :type         :user-message}})]
+    (upsert-pending-message new-message)
+    new-message))
+
+(defn send-contact-request [{:keys [whisper-identity]} contact]
+  (let [store       (storage)
+        keypair     (get-discovery-keypair store)
+        new-message (make-message {:from       (state/my-identity)
+                                   :to         whisper-identity
+                                   :message-id (random/id)
+                                   :send-once  false
+                                   :payload    {:type    :contact-request
+                                                :keypair keypair
+                                                :contact contact}})]
     (upsert-pending-message new-message)
     new-message))
 
@@ -226,6 +246,17 @@
 (defn send-seen [to message-id]
   (handler/send-seen (connection) to message-id))
 
-(defn send-account-update [account]
+(defn send-account-update [{:keys [public-key] :as account}]
   (let [topics [[(user-topic (my-identity)) discovery-topic]]]
     (broadcast-account-update topics account)))
+
+(defn send-discovery-keypair [to]
+  (let [store       (storage)
+        keypair     (get-discovery-keypair store)
+        new-message (make-message {:from      (state/my-identity)
+                                   :to        to
+                                   :send-once false
+                                   :payload   {:keypair keypair
+                                               :type    :user-discovery-keypair}})]
+    (upsert-pending-message new-message)
+    new-message))

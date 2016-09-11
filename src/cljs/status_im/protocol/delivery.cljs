@@ -49,9 +49,7 @@
                 (post-message (connection) message (post-message-callback pending-message))))
             (do
               (log/info "Delivery-loop: Retry-count for message" message-id "reached maximum")
-              (let [internal? (state/internal? message-id)]
-                (state/remove-pending-message message-id)
-                (when-not internal?
-                  (invoke-user-handler :message-failed {:message-id message-id
-                                                        :chat-id    chat-id}))))))
+              (if-not (state/internal? message-id)
+                (state/upsert-pending-message (assoc pending-message :status :failed))
+                (state/remove-pending-message message-id)))))
         (recur (<! (timeout check-delivery-interval))))))

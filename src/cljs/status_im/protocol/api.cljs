@@ -152,11 +152,12 @@
     (upsert-pending-message new-message)
     new-message))
 
-(defn send-group-user-message [{:keys [group-id content]}]
-  (send-group-message {:group-id group-id
-                       :type     :group-user-message
-                       :payload  {:content      content
-                                  :content-type default-content-type}}))
+(defn send-group-user-message [{:keys [message-id group-id content]}]
+  (send-group-message {:message-id message-id
+                       :group-id   group-id
+                       :type       :group-user-message
+                       :payload    {:content      content
+                                    :content-type default-content-type}}))
 
 (defn start-group-chat
   ([identities]

@@ -6,8 +6,9 @@
                                                          get-peer-identities]]
             [status-im.protocol.web3 :refer [make-message]]))
 
-(defn make-group-message [group-id public-key payload type]
+(defn make-group-message [message-id group-id public-key payload type]
   (make-message {:from       (state/my-identity)
+                 :message-id message-id
                  :chat-id    group-id
                  :send-once  false
                  :topics     [group-id]
@@ -17,10 +18,10 @@
                  :clear-info {:group-topic group-id
                               :type        type}}))
 
-(defn send-group-message [{:keys [group-id payload type internal?] :or {internal? false}}]
+(defn send-group-message [{:keys [message-id group-id payload type internal?] :or {internal? false}}]
   (let [store       (storage)
         {public-key :public} (get-keypair store group-id)
-        new-message (make-group-message group-id public-key payload type)]
+        new-message (make-group-message message-id group-id public-key payload type)]
     (upsert-pending-message new-message {:identities (get-peer-identities store group-id)
                                          :internal?  internal?})
     new-message))
